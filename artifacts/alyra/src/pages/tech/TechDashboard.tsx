@@ -4,11 +4,13 @@ import { Card, CardContent, Button, Badge } from "@/components/ui";
 import { UserRole, AppointmentStatus } from "@workspace/api-client-react";
 import { formatTime } from "@/lib/utils";
 import { MOCK_APPOINTMENTS } from "@/lib/mock-data";
-import { Calendar, Clock, MapPin, MessageSquare, ChevronRight } from "lucide-react";
+import { CalendarDays, Clock, MapPin, MessageSquare, ChevronDown, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -176,6 +178,14 @@ export function TechDashboard() {
   const [appointments, setAppointments] = useState(allTechApts as any[]);
   const [showBlockTime, setShowBlockTime] = useState(false);
   const [blockForm, setBlockForm] = useState({ date: "", startTime: "", endTime: "", reason: "" });
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  const switchView = (v: View) => {
+    setView(v);
+    setSelectedDate(undefined);
+    setCalendarOpen(false);
+  };
 
   const handleStartService = (id: number) => {
     const now = new Date();
@@ -201,17 +211,26 @@ export function TechDashboard() {
     toast({ title: "Time blocked successfully" });
   };
 
-  // Filter and group appointments by date
+  // Filter by view range, then optionally by selected date
   const { from, to } = getRange(view);
-  const filtered = appointments.filter(a => {
+  const rangeFiltered = appointments.filter(a => {
     const d = new Date(a.scheduledAt);
     return d >= from && d < to;
   });
 
+  const filtered = selectedDate
+    ? rangeFiltered.filter(a => sameDay(new Date(a.scheduledAt), selectedDate))
+    : rangeFiltered;
+
+  // Dates that have appointments in this range (for calendar dots)
+  const busyDates = useMemo(
+    () => rangeFiltered.map(a => startOfDay(new Date(a.scheduledAt))),
+    [rangeFiltered]
+  );
+
   // Group by calendar day
   const grouped = useMemo(() => {
     const map = new Map<string, any[]>();
-    // reverse for past views so newest appears first; forward for upcoming
     const sorted = [...filtered].sort((a, b) => {
       const diff = new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
       return view === "past" ? -diff : diff;
@@ -259,21 +278,72 @@ export function TechDashboard() {
         )}
       </div>
 
-      {/* View toggle */}
-      <div className="flex gap-1 p-1 bg-white/5 rounded-xl w-fit mb-8">
-        {VIEWS.map(v => (
-          <button
-            key={v.key}
-            onClick={() => setView(v.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              view === v.key
-                ? "bg-primary text-black"
-                : "text-muted-foreground hover:text-white"
-            }`}
-          >
-            {v.label}
-          </button>
-        ))}
+      {/* View toggle + calendar picker */}
+      <div className="flex items-center gap-3 mb-8 flex-wrap">
+        <div className="flex gap-1 p-1 bg-white/5 rounded-xl">
+          {VIEWS.map(v => (
+            <button
+              key={v.key}
+              onClick={() => switchView(v.key)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                view === v.key
+                  ? "bg-primary text-black"
+                  : "text-muted-foreground hover:text-white"
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Calendar date-picker — shown for all multi-day views */}
+        {view !== "today" && (
+          <div className="flex items-center gap-2">
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`gap-2 ${selectedDate ? "border-primary text-primary" : ""}`}
+                >
+                  <CalendarDays className="w-4 h-4" />
+                  {selectedDate
+                    ? selectedDate.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })
+                    : "Jump to date"}
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-auto p-0 bg-card border-white/10"
+                align="start"
+              >
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={d => { setSelectedDate(d); setCalendarOpen(false); }}
+                  defaultMonth={view === "past" ? new Date(from) : new Date()}
+                  disabled={d => d < from || d >= to}
+                  modifiers={{ hasAppointment: busyDates }}
+                  modifiersClassNames={{
+                    hasAppointment: "after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:rounded-full after:bg-primary relative",
+                  }}
+                  className="text-white"
+                />
+              </PopoverContent>
+            </Popover>
+
+            {selectedDate && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-muted-foreground hover:text-white px-2"
+                onClick={() => setSelectedDate(undefined)}
+              >
+                <X className="w-3.5 h-3.5" /> Clear
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Stats row for non-today views */}
@@ -302,8 +372,17 @@ export function TechDashboard() {
       <div className="max-w-4xl space-y-8">
         {grouped.size === 0 && (
           <div className="text-center py-16 text-muted-foreground">
-            <Calendar className="w-12 h-12 mx-auto mb-4 opacity-30" />
-            <p>No appointments {view === "today" ? "today" : "in this period"}.</p>
+            <CalendarDays className="w-12 h-12 mx-auto mb-4 opacity-30" />
+            <p>
+              {selectedDate
+                ? `No appointments on ${selectedDate.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}.`
+                : view === "today" ? "No appointments today." : "No appointments in this period."}
+            </p>
+            {selectedDate && (
+              <button className="mt-3 text-sm text-primary hover:underline" onClick={() => setSelectedDate(undefined)}>
+                Show all dates
+              </button>
+            )}
           </div>
         )}
 
