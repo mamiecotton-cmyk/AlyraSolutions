@@ -1,0 +1,22 @@
+packages:
+  "recharts": "Analytics and revenue charts for dashboards"
+  "date-fns": "Formatting dates and times for appointments"
+  "framer-motion": "Premium page transitions and micro-interactions"
+  "clsx": "Classname utility"
+  "tailwind-merge": "Classname utility"
+  "react-hook-form": "Form state management"
+
+images:
+  - path: "artifacts/alyra/public/images/hero-bg.png"
+    description: "A dark, moody, extremely elegant luxury nail salon interior. Deep blacks, charcoal, subtle warm gold accents, soft spotlighting, high-end beauty aesthetic, unpopulated."
+    aspect_ratio: "16:9"
+  - path: "artifacts/alyra/public/images/logo.png"
+    description: "Minimalist, luxury abstract logo mark for a high-end beauty platform. Delicate gold geometric monogram on a pure black background."
+    aspect_ratio: "1:1"
+  - path: "artifacts/alyra/public/images/try-on-placeholder.png"
+    description: "Elegant, perfectly manicured hand resting on a dark velvet surface. Neutral skin tone, blank bare nails ready for virtual polish try-on."
+    aspect_ratio: "3:4"
+
+notes:
+  - Implementing fallback mock data directly in components to ensure the UI looks fully populated and stunning even if the API endpoints return 404 or empty data during initial presentation.
+  - Using localStorage for demo auth persistence (alyra_token, alyra_user).

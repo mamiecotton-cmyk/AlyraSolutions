@@ -1,22 +1,43 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 1.0.0
+  description: Alyra Solutions - Multi-tenant Nail Salon SaaS Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: salons
+    description: Salon management
+  - name: users
+    description: User management
+  - name: technicians
+    description: Technician management
+  - name: services
+    description: Salon services
+  - name: appointments
+    description: Appointment booking
+  - name: waitlist
+    description: Walk-in waitlist management
+  - name: nail-colors
+    description: Nail color inventory
+  - name: loyalty
+    description: Loyalty program
+  - name: notifications
+    description: SMS notifications
+  - name: analytics
+    description: Analytics and reporting
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,7 +45,1268 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # Auth
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  # Salons
+  /salons:
+    get:
+      operationId: listSalons
+      tags: [salons]
+      summary: List all salons (platform admin)
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, inactive, suspended]
+      responses:
+        "200":
+          description: List of salons
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalonListResponse"
+
+    post:
+      operationId: createSalon
+      tags: [salons]
+      summary: Create a new salon
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSalonRequest"
+      responses:
+        "201":
+          description: Salon created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Salon"
+
+  /salons/{salonId}:
+    get:
+      operationId: getSalon
+      tags: [salons]
+      summary: Get salon details
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      responses:
+        "200":
+          description: Salon details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Salon"
+
+    put:
+      operationId: updateSalon
+      tags: [salons]
+      summary: Update salon
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSalonRequest"
+      responses:
+        "200":
+          description: Salon updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Salon"
+
+    delete:
+      operationId: deleteSalon
+      tags: [salons]
+      summary: Delete salon
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      responses:
+        "200":
+          description: Salon deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /salons/by-subdomain/{subdomain}:
+    get:
+      operationId: getSalonBySubdomain
+      tags: [salons]
+      summary: Get salon by subdomain
+      parameters:
+        - in: path
+          name: subdomain
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Salon details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Salon"
+
+  /salons/{salonId}/stats:
+    get:
+      operationId: getSalonStats
+      tags: [salons]
+      summary: Get salon statistics
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      responses:
+        "200":
+          description: Salon stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalonStats"
+
+  # Users
+  /salons/{salonId}/users:
+    get:
+      operationId: listSalonUsers
+      tags: [users]
+      summary: List users in salon
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum: [salon_owner, technician, client]
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+
+    post:
+      operationId: createSalonUser
+      tags: [users]
+      summary: Create user in salon
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /salons/{salonId}/users/{userId}:
+    get:
+      operationId: getSalonUser
+      tags: [users]
+      summary: Get user details
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/userId"
+      responses:
+        "200":
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+    put:
+      operationId: updateSalonUser
+      tags: [users]
+      summary: Update user
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/userId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+    delete:
+      operationId: deleteSalonUser
+      tags: [users]
+      summary: Delete user from salon
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/userId"
+      responses:
+        "200":
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # Technicians
+  /salons/{salonId}/technicians:
+    get:
+      operationId: listTechnicians
+      tags: [technicians]
+      summary: List technicians in salon
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - in: query
+          name: available
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of technicians
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TechnicianListResponse"
+
+    post:
+      operationId: createTechnician
+      tags: [technicians]
+      summary: Create technician profile
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTechnicianRequest"
+      responses:
+        "201":
+          description: Technician created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Technician"
+
+  /salons/{salonId}/technicians/{technicianId}:
+    get:
+      operationId: getTechnician
+      tags: [technicians]
+      summary: Get technician details
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/technicianId"
+      responses:
+        "200":
+          description: Technician details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Technician"
+
+    put:
+      operationId: updateTechnician
+      tags: [technicians]
+      summary: Update technician
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/technicianId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTechnicianRequest"
+      responses:
+        "200":
+          description: Technician updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Technician"
+
+  /salons/{salonId}/technicians/{technicianId}/schedule:
+    get:
+      operationId: getTechnicianSchedule
+      tags: [technicians]
+      summary: Get technician schedule/availability
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/technicianId"
+        - in: query
+          name: date
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Technician schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TechnicianSchedule"
+
+  # Services
+  /salons/{salonId}/services:
+    get:
+      operationId: listServices
+      tags: [services]
+      summary: List salon services
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - in: query
+          name: category
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of services
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceListResponse"
+
+    post:
+      operationId: createService
+      tags: [services]
+      summary: Create service
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateServiceRequest"
+      responses:
+        "201":
+          description: Service created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+
+  /salons/{salonId}/services/{serviceId}:
+    get:
+      operationId: getService
+      tags: [services]
+      summary: Get service details
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/serviceId"
+      responses:
+        "200":
+          description: Service details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+
+    put:
+      operationId: updateService
+      tags: [services]
+      summary: Update service
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/serviceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateServiceRequest"
+      responses:
+        "200":
+          description: Service updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+
+    delete:
+      operationId: deleteService
+      tags: [services]
+      summary: Delete service
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/serviceId"
+      responses:
+        "200":
+          description: Service deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # Appointments
+  /salons/{salonId}/appointments:
+    get:
+      operationId: listAppointments
+      tags: [appointments]
+      summary: List appointments
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - in: query
+          name: date
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, confirmed, in_progress, completed, cancelled, no_show]
+        - in: query
+          name: technicianId
+          schema:
+            type: integer
+        - in: query
+          name: clientId
+          schema:
+            type: integer
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of appointments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentListResponse"
+
+    post:
+      operationId: createAppointment
+      tags: [appointments]
+      summary: Create appointment
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAppointmentRequest"
+      responses:
+        "201":
+          description: Appointment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+
+  /salons/{salonId}/appointments/{appointmentId}:
+    get:
+      operationId: getAppointment
+      tags: [appointments]
+      summary: Get appointment details
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/appointmentId"
+      responses:
+        "200":
+          description: Appointment details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+
+    put:
+      operationId: updateAppointment
+      tags: [appointments]
+      summary: Update appointment
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/appointmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAppointmentRequest"
+      responses:
+        "200":
+          description: Appointment updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+
+    delete:
+      operationId: cancelAppointment
+      tags: [appointments]
+      summary: Cancel appointment
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/appointmentId"
+      responses:
+        "200":
+          description: Appointment cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+
+  /salons/{salonId}/appointments/availability:
+    get:
+      operationId: getAvailability
+      tags: [appointments]
+      summary: Get available time slots
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - in: query
+          name: date
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: serviceIds
+          schema:
+            type: string
+            description: Comma-separated service IDs
+        - in: query
+          name: technicianId
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Available time slots
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityResponse"
+
+  # Waitlist
+  /salons/{salonId}/waitlist:
+    get:
+      operationId: getWaitlist
+      tags: [waitlist]
+      summary: Get current waitlist
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [waiting, called, serving, completed, left]
+      responses:
+        "200":
+          description: Current waitlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaitlistResponse"
+
+    post:
+      operationId: joinWaitlist
+      tags: [waitlist]
+      summary: Add walk-in to waitlist
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinWaitlistRequest"
+      responses:
+        "201":
+          description: Added to waitlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaitlistEntry"
+
+  /salons/{salonId}/waitlist/{entryId}:
+    get:
+      operationId: getWaitlistEntry
+      tags: [waitlist]
+      summary: Get waitlist entry status
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - in: path
+          name: entryId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Waitlist entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaitlistEntry"
+
+    put:
+      operationId: updateWaitlistEntry
+      tags: [waitlist]
+      summary: Update waitlist entry status
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - in: path
+          name: entryId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWaitlistEntryRequest"
+      responses:
+        "200":
+          description: Waitlist entry updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaitlistEntry"
+
+  /salons/{salonId}/waitlist/qr-code:
+    get:
+      operationId: getWaitlistQrCode
+      tags: [waitlist]
+      summary: Get QR code for walk-in check-in
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      responses:
+        "200":
+          description: QR code data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrCodeResponse"
+
+  /salons/{salonId}/waitlist/wait-time:
+    get:
+      operationId: getEstimatedWaitTime
+      tags: [waitlist]
+      summary: Get estimated wait time
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - in: query
+          name: serviceIds
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Estimated wait time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaitTimeResponse"
+
+  # Nail Colors
+  /salons/{salonId}/nail-colors:
+    get:
+      operationId: listNailColors
+      tags: [nail-colors]
+      summary: List nail color inventory
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - in: query
+          name: brand
+          schema:
+            type: string
+        - in: query
+          name: finish
+          schema:
+            type: string
+            enum: [glossy, matte, shimmer, glitter, chrome, holographic]
+        - in: query
+          name: inStock
+          schema:
+            type: boolean
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: List of nail colors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NailColorListResponse"
+
+    post:
+      operationId: createNailColor
+      tags: [nail-colors]
+      summary: Add nail color to inventory
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNailColorRequest"
+      responses:
+        "201":
+          description: Nail color added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NailColor"
+
+  /salons/{salonId}/nail-colors/{colorId}:
+    get:
+      operationId: getNailColor
+      tags: [nail-colors]
+      summary: Get nail color details
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/colorId"
+      responses:
+        "200":
+          description: Nail color details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NailColor"
+
+    put:
+      operationId: updateNailColor
+      tags: [nail-colors]
+      summary: Update nail color
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/colorId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNailColorRequest"
+      responses:
+        "200":
+          description: Nail color updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NailColor"
+
+    delete:
+      operationId: deleteNailColor
+      tags: [nail-colors]
+      summary: Remove nail color from inventory
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/colorId"
+      responses:
+        "200":
+          description: Nail color deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /salons/{salonId}/nail-colors/try-on:
+    post:
+      operationId: virtualTryOn
+      tags: [nail-colors]
+      summary: Virtual nail try-on (generate preview)
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VirtualTryOnRequest"
+      responses:
+        "200":
+          description: Try-on preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VirtualTryOnResponse"
+
+  # Loyalty Program
+  /salons/{salonId}/loyalty/config:
+    get:
+      operationId: getLoyaltyConfig
+      tags: [loyalty]
+      summary: Get loyalty program configuration
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      responses:
+        "200":
+          description: Loyalty config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoyaltyConfig"
+
+    put:
+      operationId: updateLoyaltyConfig
+      tags: [loyalty]
+      summary: Update loyalty program configuration
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLoyaltyConfigRequest"
+      responses:
+        "200":
+          description: Loyalty config updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoyaltyConfig"
+
+  /salons/{salonId}/loyalty/rewards:
+    get:
+      operationId: listLoyaltyRewards
+      tags: [loyalty]
+      summary: List available rewards
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      responses:
+        "200":
+          description: List of rewards
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoyaltyRewardListResponse"
+
+    post:
+      operationId: createLoyaltyReward
+      tags: [loyalty]
+      summary: Create loyalty reward
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLoyaltyRewardRequest"
+      responses:
+        "201":
+          description: Reward created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoyaltyReward"
+
+  /salons/{salonId}/loyalty/clients/{clientId}:
+    get:
+      operationId: getClientLoyalty
+      tags: [loyalty]
+      summary: Get client loyalty points and history
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/clientId"
+      responses:
+        "200":
+          description: Client loyalty info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientLoyalty"
+
+  /salons/{salonId}/loyalty/clients/{clientId}/redeem:
+    post:
+      operationId: redeemPoints
+      tags: [loyalty]
+      summary: Redeem loyalty points
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/clientId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedeemPointsRequest"
+      responses:
+        "200":
+          description: Points redeemed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientLoyalty"
+
+  # Client Profiles
+  /salons/{salonId}/clients:
+    get:
+      operationId: listClients
+      tags: [users]
+      summary: List salon clients
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of clients
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientListResponse"
+
+  /salons/{salonId}/clients/{clientId}:
+    get:
+      operationId: getClientProfile
+      tags: [users]
+      summary: Get client profile with history
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/clientId"
+      responses:
+        "200":
+          description: Client profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientProfile"
+
+    put:
+      operationId: updateClientProfile
+      tags: [users]
+      summary: Update client profile
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - $ref: "#/components/parameters/clientId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClientProfileRequest"
+      responses:
+        "200":
+          description: Client profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientProfile"
+
+  # SMS Notifications
+  /salons/{salonId}/notifications/send:
+    post:
+      operationId: sendNotification
+      tags: [notifications]
+      summary: Send SMS notification
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendNotificationRequest"
+      responses:
+        "200":
+          description: Notification sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResponse"
+
+  /salons/{salonId}/notifications/templates:
+    get:
+      operationId: listNotificationTemplates
+      tags: [notifications]
+      summary: List notification templates
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      responses:
+        "200":
+          description: List of templates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationTemplateListResponse"
+
+    post:
+      operationId: createNotificationTemplate
+      tags: [notifications]
+      summary: Create notification template
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNotificationTemplateRequest"
+      responses:
+        "201":
+          description: Template created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationTemplate"
+
+  # Analytics
+  /salons/{salonId}/analytics/overview:
+    get:
+      operationId: getAnalyticsOverview
+      tags: [analytics]
+      summary: Get analytics overview
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Analytics overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsOverview"
+
+  /salons/{salonId}/analytics/revenue:
+    get:
+      operationId: getRevenueAnalytics
+      tags: [analytics]
+      summary: Get revenue analytics
+      parameters:
+        - $ref: "#/components/parameters/salonId"
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: groupBy
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: day
+      responses:
+        "200":
+          description: Revenue analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevenueAnalytics"
+
+  # Platform Admin
+  /admin/salons:
+    get:
+      operationId: adminListSalons
+      tags: [salons]
+      summary: Admin - list all salons
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: All salons
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalonListResponse"
+
+  /admin/stats:
+    get:
+      operationId: getPlatformStats
+      tags: [analytics]
+      summary: Get platform-wide stats
+      responses:
+        "200":
+          description: Platform stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformStats"
+
 components:
+  parameters:
+    salonId:
+      in: path
+      name: salonId
+      required: true
+      schema:
+        type: integer
+    userId:
+      in: path
+      name: userId
+      required: true
+      schema:
+        type: integer
+    technicianId:
+      in: path
+      name: technicianId
+      required: true
+      schema:
+        type: integer
+    serviceId:
+      in: path
+      name: serviceId
+      required: true
+      schema:
+        type: integer
+    appointmentId:
+      in: path
+      name: appointmentId
+      required: true
+      schema:
+        type: integer
+    colorId:
+      in: path
+      name: colorId
+      required: true
+      schema:
+        type: integer
+    clientId:
+      in: path
+      name: clientId
+      required: true
+      schema:
+        type: integer
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +1316,1655 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+        - message
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+
+    # Auth
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [platform_admin, salon_owner, technician, client]
+        salonId:
+          type: integer
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+        - role
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - user
+
+    # Users
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [platform_admin, salon_owner, technician, client]
+        salonId:
+          type: integer
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - firstName
+        - lastName
+        - role
+        - isActive
+        - createdAt
+        - updatedAt
+
+    CreateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [salon_owner, technician, client]
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+        - role
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        isActive:
+          type: boolean
+
+    UserListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required:
+        - data
+        - meta
+
+    # Salons
+    Salon:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        subdomain:
+          type: string
+        description:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        zipCode:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        website:
+          type: string
+          nullable: true
+        logoUrl:
+          type: string
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+        timezone:
+          type: string
+        openingHours:
+          $ref: "#/components/schemas/OpeningHours"
+        ownerId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - subdomain
+        - status
+        - timezone
+        - ownerId
+        - createdAt
+        - updatedAt
+
+    OpeningHours:
+      type: object
+      properties:
+        monday:
+          $ref: "#/components/schemas/DayHours"
+        tuesday:
+          $ref: "#/components/schemas/DayHours"
+        wednesday:
+          $ref: "#/components/schemas/DayHours"
+        thursday:
+          $ref: "#/components/schemas/DayHours"
+        friday:
+          $ref: "#/components/schemas/DayHours"
+        saturday:
+          $ref: "#/components/schemas/DayHours"
+        sunday:
+          $ref: "#/components/schemas/DayHours"
+
+    DayHours:
+      type: object
+      properties:
+        open:
+          type: boolean
+        openTime:
+          type: string
+          nullable: true
+        closeTime:
+          type: string
+          nullable: true
+      required:
+        - open
+
+    CreateSalonRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        subdomain:
+          type: string
+        description:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zipCode:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        website:
+          type: string
+        timezone:
+          type: string
+        ownerId:
+          type: integer
+      required:
+        - name
+        - subdomain
+        - timezone
+        - ownerId
+
+    UpdateSalonRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zipCode:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        website:
+          type: string
+        timezone:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+        openingHours:
+          $ref: "#/components/schemas/OpeningHours"
+
+    SalonListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Salon"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required:
+        - data
+        - meta
+
+    SalonStats:
+      type: object
+      properties:
+        totalAppointments:
+          type: integer
+        todayAppointments:
+          type: integer
+        pendingAppointments:
+          type: integer
+        totalClients:
+          type: integer
+        totalTechnicians:
+          type: integer
+        currentWaitlistCount:
+          type: integer
+        avgWaitTime:
+          type: integer
+        monthlyRevenue:
+          type: number
+        totalRevenue:
+          type: number
+      required:
+        - totalAppointments
+        - todayAppointments
+        - pendingAppointments
+        - totalClients
+        - totalTechnicians
+        - currentWaitlistCount
+        - avgWaitTime
+        - monthlyRevenue
+        - totalRevenue
+
+    # Technicians
+    Technician:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        salonId:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        specialties:
+          type: array
+          items:
+            type: string
+        bio:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        isAvailable:
+          type: boolean
+        rating:
+          type: number
+          nullable: true
+        totalReviews:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - salonId
+        - firstName
+        - lastName
+        - email
+        - specialties
+        - isActive
+        - isAvailable
+        - totalReviews
+        - createdAt
+
+    CreateTechnicianRequest:
+      type: object
+      properties:
+        userId:
+          type: integer
+        specialties:
+          type: array
+          items:
+            type: string
+        bio:
+          type: string
+      required:
+        - userId
+        - specialties
+
+    UpdateTechnicianRequest:
+      type: object
+      properties:
+        specialties:
+          type: array
+          items:
+            type: string
+        bio:
+          type: string
+        isActive:
+          type: boolean
+        isAvailable:
+          type: boolean
+
+    TechnicianListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Technician"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required:
+        - data
+        - meta
+
+    TechnicianSchedule:
+      type: object
+      properties:
+        technicianId:
+          type: integer
+        date:
+          type: string
+          format: date
+        workHours:
+          $ref: "#/components/schemas/DayHours"
+        appointments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppointmentSlot"
+        blockedSlots:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeSlot"
+      required:
+        - technicianId
+        - date
+        - appointments
+        - blockedSlots
+
+    TimeSlot:
+      type: object
+      properties:
+        startTime:
+          type: string
+        endTime:
+          type: string
+      required:
+        - startTime
+        - endTime
+
+    AppointmentSlot:
+      type: object
+      properties:
+        appointmentId:
+          type: integer
+        clientName:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        services:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+      required:
+        - appointmentId
+        - clientName
+        - startTime
+        - endTime
+        - services
+        - status
+
+    # Services
+    Service:
+      type: object
+      properties:
+        id:
+          type: integer
+        salonId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+        duration:
+          type: integer
+          description: Duration in minutes
+        price:
+          type: number
+        isActive:
+          type: boolean
+        imageUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - salonId
+        - name
+        - category
+        - duration
+        - price
+        - isActive
+        - createdAt
+        - updatedAt
+
+    CreateServiceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        duration:
+          type: integer
+        price:
+          type: number
+      required:
+        - name
+        - category
+        - duration
+        - price
+
+    UpdateServiceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        duration:
+          type: integer
+        price:
+          type: number
+        isActive:
+          type: boolean
+
+    ServiceListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Service"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required:
+        - data
+        - meta
+
+    # Appointments
+    Appointment:
+      type: object
+      properties:
+        id:
+          type: integer
+        salonId:
+          type: integer
+        clientId:
+          type: integer
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+          format: date-time
+        estimatedEndAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, confirmed, in_progress, completed, cancelled, no_show]
+        notes:
+          type: string
+          nullable: true
+        totalAmount:
+          type: number
+          nullable: true
+        technicians:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppointmentTechnician"
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppointmentService"
+        nailColorId:
+          type: integer
+          nullable: true
+        nailDesignNotes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - salonId
+        - clientId
+        - clientName
+        - scheduledAt
+        - estimatedEndAt
+        - status
+        - technicians
+        - services
+        - createdAt
+        - updatedAt
+
+    AppointmentTechnician:
+      type: object
+      properties:
+        technicianId:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          description: "e.g., primary, assisting"
+      required:
+        - technicianId
+        - firstName
+        - lastName
+        - role
+
+    AppointmentService:
+      type: object
+      properties:
+        serviceId:
+          type: integer
+        name:
+          type: string
+        duration:
+          type: integer
+        price:
+          type: number
+        technicianId:
+          type: integer
+          nullable: true
+      required:
+        - serviceId
+        - name
+        - duration
+        - price
+
+    CreateAppointmentRequest:
+      type: object
+      properties:
+        clientId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        serviceIds:
+          type: array
+          items:
+            type: integer
+        technicianIds:
+          type: array
+          items:
+            type: integer
+        notes:
+          type: string
+        nailColorId:
+          type: integer
+        nailDesignNotes:
+          type: string
+      required:
+        - clientId
+        - scheduledAt
+        - serviceIds
+        - technicianIds
+
+    UpdateAppointmentRequest:
+      type: object
+      properties:
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, confirmed, in_progress, completed, cancelled, no_show]
+        notes:
+          type: string
+        technicianIds:
+          type: array
+          items:
+            type: integer
+        nailColorId:
+          type: integer
+        nailDesignNotes:
+          type: string
+        totalAmount:
+          type: number
+
+    AppointmentListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Appointment"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required:
+        - data
+        - meta
+
+    AvailabilityResponse:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/AvailableSlot"
+      required:
+        - date
+        - slots
+
+    AvailableSlot:
+      type: object
+      properties:
+        startTime:
+          type: string
+        endTime:
+          type: string
+        availableTechnicians:
+          type: array
+          items:
+            type: integer
+      required:
+        - startTime
+        - endTime
+        - availableTechnicians
+
+    # Waitlist
+    WaitlistEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        salonId:
+          type: integer
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+          nullable: true
+        partySize:
+          type: integer
+        serviceIds:
+          type: array
+          items:
+            type: integer
+        preferredTechnicianId:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [waiting, called, serving, completed, left]
+        position:
+          type: integer
+        estimatedWaitMinutes:
+          type: integer
+        notes:
+          type: string
+          nullable: true
+        checkInCode:
+          type: string
+        joinedAt:
+          type: string
+          format: date-time
+        calledAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        clientId:
+          type: integer
+          nullable: true
+      required:
+        - id
+        - salonId
+        - clientName
+        - partySize
+        - serviceIds
+        - status
+        - position
+        - estimatedWaitMinutes
+        - checkInCode
+        - joinedAt
+
+    JoinWaitlistRequest:
+      type: object
+      properties:
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+        partySize:
+          type: integer
+          default: 1
+        serviceIds:
+          type: array
+          items:
+            type: integer
+        preferredTechnicianId:
+          type: integer
+        notes:
+          type: string
+        clientId:
+          type: integer
+      required:
+        - clientName
+        - partySize
+        - serviceIds
+
+    UpdateWaitlistEntryRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [waiting, called, serving, completed, left]
+        preferredTechnicianId:
+          type: integer
+
+    WaitlistResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/WaitlistEntry"
+        totalWaiting:
+          type: integer
+        avgWaitTime:
+          type: integer
+      required:
+        - entries
+        - totalWaiting
+        - avgWaitTime
+
+    QrCodeResponse:
+      type: object
+      properties:
+        qrCodeUrl:
+          type: string
+        checkInUrl:
+          type: string
+        salonId:
+          type: integer
+      required:
+        - qrCodeUrl
+        - checkInUrl
+        - salonId
+
+    WaitTimeResponse:
+      type: object
+      properties:
+        estimatedMinutes:
+          type: integer
+        currentQueueLength:
+          type: integer
+        availableTechnicians:
+          type: integer
+      required:
+        - estimatedMinutes
+        - currentQueueLength
+        - availableTechnicians
+
+    # Nail Colors
+    NailColor:
+      type: object
+      properties:
+        id:
+          type: integer
+        salonId:
+          type: integer
+        name:
+          type: string
+        brand:
+          type: string
+        colorCode:
+          type: string
+          description: Hex color code
+        finish:
+          type: string
+          enum: [glossy, matte, shimmer, glitter, chrome, holographic]
+        collection:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        inStock:
+          type: boolean
+        stockQuantity:
+          type: integer
+          nullable: true
+        price:
+          type: number
+          nullable: true
+        isPopular:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - salonId
+        - name
+        - brand
+        - colorCode
+        - finish
+        - inStock
+        - isPopular
+        - tags
+        - createdAt
+        - updatedAt
+
+    CreateNailColorRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        brand:
+          type: string
+        colorCode:
+          type: string
+        finish:
+          type: string
+          enum: [glossy, matte, shimmer, glitter, chrome, holographic]
+        collection:
+          type: string
+        imageUrl:
+          type: string
+        inStock:
+          type: boolean
+        stockQuantity:
+          type: integer
+        price:
+          type: number
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - brand
+        - colorCode
+        - finish
+
+    UpdateNailColorRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        brand:
+          type: string
+        colorCode:
+          type: string
+        finish:
+          type: string
+          enum: [glossy, matte, shimmer, glitter, chrome, holographic]
+        collection:
+          type: string
+        imageUrl:
+          type: string
+        inStock:
+          type: boolean
+        stockQuantity:
+          type: integer
+        price:
+          type: number
+        isPopular:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+
+    NailColorListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/NailColor"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required:
+        - data
+        - meta
+
+    VirtualTryOnRequest:
+      type: object
+      properties:
+        colorId:
+          type: integer
+        handImageUrl:
+          type: string
+          description: URL of user's hand photo
+      required:
+        - colorId
+
+    VirtualTryOnResponse:
+      type: object
+      properties:
+        previewImageUrl:
+          type: string
+        colorId:
+          type: integer
+        colorName:
+          type: string
+        colorCode:
+          type: string
+      required:
+        - previewImageUrl
+        - colorId
+        - colorName
+        - colorCode
+
+    # Loyalty
+    LoyaltyConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+        salonId:
+          type: integer
+        isEnabled:
+          type: boolean
+        pointsPerDollar:
+          type: number
+        pointsPerVisit:
+          type: integer
+        minimumRedemption:
+          type: integer
+        pointsExpireDays:
+          type: integer
+          nullable: true
+        tierConfig:
+          type: array
+          items:
+            $ref: "#/components/schemas/LoyaltyTier"
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - salonId
+        - isEnabled
+        - pointsPerDollar
+        - pointsPerVisit
+        - minimumRedemption
+        - tierConfig
+        - updatedAt
+
+    LoyaltyTier:
+      type: object
+      properties:
+        name:
+          type: string
+        minPoints:
+          type: integer
+        benefits:
+          type: array
+          items:
+            type: string
+        color:
+          type: string
+      required:
+        - name
+        - minPoints
+        - benefits
+        - color
+
+    UpdateLoyaltyConfigRequest:
+      type: object
+      properties:
+        isEnabled:
+          type: boolean
+        pointsPerDollar:
+          type: number
+        pointsPerVisit:
+          type: integer
+        minimumRedemption:
+          type: integer
+        pointsExpireDays:
+          type: integer
+        tierConfig:
+          type: array
+          items:
+            $ref: "#/components/schemas/LoyaltyTier"
+
+    LoyaltyReward:
+      type: object
+      properties:
+        id:
+          type: integer
+        salonId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        pointsCost:
+          type: integer
+        discountType:
+          type: string
+          enum: [percentage, fixed, free_service]
+        discountValue:
+          type: number
+          nullable: true
+        serviceId:
+          type: integer
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - salonId
+        - name
+        - pointsCost
+        - discountType
+        - isActive
+        - createdAt
+
+    CreateLoyaltyRewardRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        pointsCost:
+          type: integer
+        discountType:
+          type: string
+          enum: [percentage, fixed, free_service]
+        discountValue:
+          type: number
+        serviceId:
+          type: integer
+      required:
+        - name
+        - pointsCost
+        - discountType
+
+    LoyaltyRewardListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/LoyaltyReward"
+      required:
+        - data
+
+    ClientLoyalty:
+      type: object
+      properties:
+        clientId:
+          type: integer
+        salonId:
+          type: integer
+        totalPoints:
+          type: integer
+        lifetimePoints:
+          type: integer
+        tier:
+          type: string
+        visitCount:
+          type: integer
+        totalSpent:
+          type: number
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/LoyaltyTransaction"
+      required:
+        - clientId
+        - salonId
+        - totalPoints
+        - lifetimePoints
+        - tier
+        - visitCount
+        - totalSpent
+        - transactions
+
+    LoyaltyTransaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        points:
+          type: integer
+        type:
+          type: string
+          enum: [earned, redeemed, expired, bonus]
+        description:
+          type: string
+        appointmentId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - points
+        - type
+        - description
+        - createdAt
+
+    RedeemPointsRequest:
+      type: object
+      properties:
+        rewardId:
+          type: integer
+        appointmentId:
+          type: integer
+      required:
+        - rewardId
+
+    # Client Profiles
+    ClientProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        birthday:
+          type: string
+          format: date
+          nullable: true
+        allergies:
+          type: string
+          nullable: true
+        preferences:
+          type: string
+          nullable: true
+        preferredTechnicianId:
+          type: integer
+          nullable: true
+        totalVisits:
+          type: integer
+        totalSpent:
+          type: number
+        loyaltyPoints:
+          type: integer
+        loyaltyTier:
+          type: string
+        lastVisitAt:
+          type: string
+          format: date-time
+          nullable: true
+        recentAppointments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Appointment"
+        favoritedColors:
+          type: array
+          items:
+            $ref: "#/components/schemas/NailColor"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - firstName
+        - lastName
+        - totalVisits
+        - totalSpent
+        - loyaltyPoints
+        - loyaltyTier
+        - recentAppointments
+        - favoritedColors
+        - createdAt
+
+    UpdateClientProfileRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+        birthday:
+          type: string
+          format: date
+        allergies:
+          type: string
+        preferences:
+          type: string
+        preferredTechnicianId:
+          type: integer
+
+    ClientListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClientProfile"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required:
+        - data
+        - meta
+
+    # Notifications
+    SendNotificationRequest:
+      type: object
+      properties:
+        recipientPhone:
+          type: string
+        message:
+          type: string
+        type:
+          type: string
+          enum: [appointment_reminder, waitlist_update, loyalty_update, custom]
+        appointmentId:
+          type: integer
+        waitlistEntryId:
+          type: integer
+      required:
+        - recipientPhone
+        - message
+        - type
+
+    NotificationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        messageId:
+          type: string
+          nullable: true
+        message:
+          type: string
+      required:
+        - success
+        - message
+
+    NotificationTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+        salonId:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [appointment_reminder, waitlist_update, loyalty_update, custom]
+        template:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - salonId
+        - name
+        - type
+        - template
+        - isActive
+        - createdAt
+
+    CreateNotificationTemplateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [appointment_reminder, waitlist_update, loyalty_update, custom]
+        template:
+          type: string
+      required:
+        - name
+        - type
+        - template
+
+    NotificationTemplateListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationTemplate"
+      required:
+        - data
+
+    # Analytics
+    AnalyticsOverview:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            startDate:
+              type: string
+              format: date
+            endDate:
+              type: string
+              format: date
+          required:
+            - startDate
+            - endDate
+        totalAppointments:
+          type: integer
+        completedAppointments:
+          type: integer
+        cancelledAppointments:
+          type: integer
+        totalRevenue:
+          type: number
+        newClients:
+          type: integer
+        returningClients:
+          type: integer
+        avgAppointmentValue:
+          type: number
+        topServices:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceStat"
+        topTechnicians:
+          type: array
+          items:
+            $ref: "#/components/schemas/TechnicianStat"
+      required:
+        - period
+        - totalAppointments
+        - completedAppointments
+        - cancelledAppointments
+        - totalRevenue
+        - newClients
+        - returningClients
+        - avgAppointmentValue
+        - topServices
+        - topTechnicians
+
+    ServiceStat:
+      type: object
+      properties:
+        serviceId:
+          type: integer
+        name:
+          type: string
+        count:
+          type: integer
+        revenue:
+          type: number
+      required:
+        - serviceId
+        - name
+        - count
+        - revenue
+
+    TechnicianStat:
+      type: object
+      properties:
+        technicianId:
+          type: integer
+        name:
+          type: string
+        appointmentCount:
+          type: integer
+        revenue:
+          type: number
+        rating:
+          type: number
+          nullable: true
+      required:
+        - technicianId
+        - name
+        - appointmentCount
+        - revenue
+
+    RevenueAnalytics:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            startDate:
+              type: string
+              format: date
+            endDate:
+              type: string
+              format: date
+          required:
+            - startDate
+            - endDate
+        totalRevenue:
+          type: number
+        dataPoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/RevenueDataPoint"
+      required:
+        - period
+        - totalRevenue
+        - dataPoints
+
+    RevenueDataPoint:
+      type: object
+      properties:
+        date:
+          type: string
+        revenue:
+          type: number
+        appointmentCount:
+          type: integer
+      required:
+        - date
+        - revenue
+        - appointmentCount
+
+    PlatformStats:
+      type: object
+      properties:
+        totalSalons:
+          type: integer
+        activeSalons:
+          type: integer
+        totalUsers:
+          type: integer
+        totalAppointments:
+          type: integer
+        platformRevenue:
+          type: number
+        monthlyGrowth:
+          type: number
+      required:
+        - totalSalons
+        - activeSalons
+        - totalUsers
+        - totalAppointments
+        - platformRevenue
+        - monthlyGrowth

@@ -1,8 +1,38 @@
-# Workspace
+# Alyra Solutions - Multi-Tenant Nail Salon SaaS Platform
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+Full-stack multi-tenant SaaS platform for nail salons. Built with React + Vite frontend and Express API backend, using PostgreSQL + Drizzle ORM.
+
+## Demo Accounts
+
+| Role | Email | Password |
+|------|-------|----------|
+| Platform Admin | admin@alyra.com | admin123 |
+| Salon Owner | sarah@glamnails.com | owner123 |
+| Technician | maya@glamnails.com | tech123 |
+| Client | emma@example.com | client123 |
+
+The frontend also has quick-login demo buttons on the login screen.
+
+## Features
+
+- **Multi-tenant salons** with subdomain-based routing (e.g., glamnails.platform.com)
+- **4 user roles**: Platform Admin, Salon Owner, Technician, Client
+- **Appointment booking** with multiple technicians per visit
+- **Walk-in QR waitlist** with estimated wait times
+- **Nail color inventory** with hex swatch display and virtual try-on
+- **Loyalty program** with point tiers (Bronze/Silver/Gold/Platinum)
+- **SMS notifications** (Twilio integration ready - connect Twilio to enable)
+- **Client profiles** with appointment history and preferences
+- **Analytics dashboard** with revenue charts and performance stats
+
+## Artifacts
+
+- `artifacts/alyra` — React + Vite frontend (served at `/`)
+- `artifacts/api-server` — Express 5 REST API (served at `/api`)
+
+
 
 ## Stack
 
