@@ -12,7 +12,8 @@ import {
   LogOut,
   Building2,
   BarChart3,
-  Clock
+  Clock,
+  UserCircle
 } from "lucide-react";
 import { UserRole } from "@workspace/api-client-react";
 
@@ -43,6 +44,7 @@ export function Sidebar() {
       case UserRole.technician:
         return [
           { href: "/tech", label: "My Schedule", icon: CalendarDays },
+          { href: "/tech/profile", label: "My Profile", icon: UserCircle },
         ];
       case UserRole.client:
         return [

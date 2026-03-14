@@ -15,6 +15,7 @@ import { NailColors } from "@/pages/owner/NailColors";
 import { LoyaltyConfig } from "@/pages/owner/LoyaltyConfig";
 import { SalonSettings } from "@/pages/owner/SalonSettings";
 import { TechDashboard } from "@/pages/tech/TechDashboard";
+import { TechProfile } from "@/pages/tech/TechProfile";
 import { ClientDashboard } from "@/pages/client/ClientDashboard";
 import { BookAppointment } from "@/pages/client/BookAppointment";
 import { WalkIn } from "@/pages/WalkIn";
@@ -50,6 +51,7 @@ function Router() {
       
       {/* Technician */}
       <Route path="/tech" component={TechDashboard} />
+      <Route path="/tech/profile" component={TechProfile} />
       
       {/* Client */}
       <Route path="/client" component={ClientDashboard} />
