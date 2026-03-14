@@ -4,6 +4,8 @@ import { Card, CardContent, Button, Badge } from "@/components/ui";
 import { UserRole } from "@workspace/api-client-react";
 import { Check, ChevronRight, Sparkles, Scissors, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 const SERVICES = [
   { id: 1, name: "Gel-X Extensions", duration: 90, price: 125, desc: "Premium soft gel extensions for perfect length." },
@@ -14,19 +16,31 @@ const SERVICES = [
 const TIME_SLOTS = ["10:00 AM", "11:30 AM", "1:00 PM", "2:30 PM", "4:00 PM"];
 
 export function BookAppointment() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<number | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleNext = () => setStep(s => Math.min(s + 1, 3));
   const handleBack = () => setStep(s => Math.max(s - 1, 1));
+
+  const handleConfirm = async () => {
+    setIsSubmitting(true);
+    // Simulate API call
+    await new Promise(r => setTimeout(r, 800));
+    setIsSubmitting(false);
+    toast({ title: "Appointment booked! See you soon." });
+    setLocation('/client');
+  };
 
   return (
     <DashboardLayout requiredRole={UserRole.client}>
       <div className="max-w-3xl mx-auto">
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-display text-white mb-2">Book Appointment</h1>
-          <p className="text-muted-foreground">Aura Luxe Studio • Beverly Hills</p>
+          <p className="text-muted-foreground">Glam Nails Studio • Beverly Hills</p>
         </div>
 
         {/* Progress Steps */}
@@ -105,6 +119,10 @@ export function BookAppointment() {
                     <span className="text-muted-foreground">Date & Time</span>
                     <span className="text-white font-medium">Tomorrow, {selectedTime}</span>
                   </div>
+                  <div className="flex justify-between mb-4 pb-4 border-b border-white/10">
+                    <span className="text-muted-foreground">Location</span>
+                    <span className="text-white font-medium">Glam Nails Studio</span>
+                  </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Total</span>
                     <span className="text-primary font-bold text-xl">${SERVICES.find(s=>s.id===selectedService)?.price}</span>
@@ -121,8 +139,8 @@ export function BookAppointment() {
                 Next Step <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             ) : (
-              <Button variant="gold" onClick={() => window.location.href='/client'}>
-                Confirm Booking
+              <Button variant="gold" onClick={handleConfirm} disabled={isSubmitting}>
+                {isSubmitting ? "Booking..." : "Confirm Booking"}
               </Button>
             )}
           </div>

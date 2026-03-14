@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import { 
   LayoutDashboard, 
   CalendarDays, 
@@ -16,8 +17,9 @@ import {
 import { UserRole } from "@workspace/api-client-react";
 
 export function Sidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user, logout } = useAuth();
+  const { toast } = useToast();
 
   const getLinks = () => {
     if (!user) return [];
@@ -96,7 +98,7 @@ export function Sidebar() {
           </div>
         </div>
         <button 
-          onClick={() => logout()}
+          onClick={() => { logout(); setLocation("/login"); toast({ title: "Signed out" }); }}
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors"
         >
           <LogOut className="h-5 w-5" />
