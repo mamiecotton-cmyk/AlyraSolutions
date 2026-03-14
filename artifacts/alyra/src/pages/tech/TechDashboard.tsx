@@ -321,8 +321,13 @@ export function TechDashboard() {
                   mode="single"
                   selected={selectedDate}
                   onSelect={d => { setSelectedDate(d); setCalendarOpen(false); }}
-                  defaultMonth={view === "past" ? new Date(from) : new Date()}
-                  disabled={d => d < from || d >= to}
+                  defaultMonth={view === "past" || view === "next" ? new Date(from) : new Date()}
+                  disabled={d => {
+                    const dn = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+                    const fn = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
+                    const tn = new Date(to.getFullYear(), to.getMonth(), to.getDate()).getTime();
+                    return dn < fn || dn >= tn;
+                  }}
                   modifiers={{ hasAppointment: busyDates }}
                   modifiersClassNames={{
                     hasAppointment: "after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:rounded-full after:bg-primary relative",
