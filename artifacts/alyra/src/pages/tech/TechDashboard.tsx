@@ -87,6 +87,24 @@ const EXTRA_APPOINTMENTS = [
   { id: 303, clientName: "Demi Knox",    scheduledAt: daysFromNow(2, 11, 0), services: [{ serviceId: 4, name: "Nail Art Design",  duration: 60, price: 85  }], status: AppointmentStatus.pending,   totalAmount: 85  },
   { id: 304, clientName: "Fiona Marsh",  scheduledAt: daysFromNow(3, 9, 30), services: [{ serviceId: 2, name: "Classic Manicure", duration: 45, price: 45  }], status: AppointmentStatus.pending,   totalAmount: 45  },
   { id: 305, clientName: "Leah Rowe",    scheduledAt: daysFromNow(4, 13, 0), services: [{ serviceId: 1, name: "Gel-X Extensions", duration: 90, price: 125 }], status: AppointmentStatus.pending,   totalAmount: 125 },
+
+  // ── Next month (days 5–31 from now) ──
+  { id: 401, clientName: "Camille Ross",  scheduledAt: daysFromNow(5, 10, 0),  services: [{ serviceId: 3, name: "Russian Manicure",  duration: 90, price: 150 }], status: AppointmentStatus.confirmed, totalAmount: 150 },
+  { id: 402, clientName: "Naomi Banks",   scheduledAt: daysFromNow(5, 14, 0),  services: [{ serviceId: 1, name: "Gel-X Extensions",  duration: 90, price: 125 }], status: AppointmentStatus.confirmed, totalAmount: 125 },
+  { id: 403, clientName: "Elara Voss",    scheduledAt: daysFromNow(7, 9, 30),  services: [{ serviceId: 4, name: "Nail Art Design",   duration: 60, price: 85  }], status: AppointmentStatus.pending,   totalAmount: 85  },
+  { id: 404, clientName: "Seren Bell",    scheduledAt: daysFromNow(7, 13, 0),  services: [{ serviceId: 2, name: "Classic Manicure",  duration: 45, price: 45  }], status: AppointmentStatus.pending,   totalAmount: 45  },
+  { id: 405, clientName: "Thea Dunn",     scheduledAt: daysFromNow(9, 10, 0),  services: [{ serviceId: 1, name: "Gel-X Extensions",  duration: 90, price: 125 }], status: AppointmentStatus.confirmed, totalAmount: 125 },
+  { id: 406, clientName: "Rosa Klein",    scheduledAt: daysFromNow(11, 11, 0), services: [{ serviceId: 3, name: "Russian Manicure",  duration: 90, price: 150 }], status: AppointmentStatus.pending,   totalAmount: 150 },
+  { id: 407, clientName: "Vivi Stone",    scheduledAt: daysFromNow(14, 9, 0),  services: [{ serviceId: 4, name: "Nail Art Design",   duration: 60, price: 85  }], status: AppointmentStatus.pending,   totalAmount: 85  },
+  { id: 408, clientName: "Quinn Ash",     scheduledAt: daysFromNow(14, 14, 30),services: [{ serviceId: 1, name: "Gel-X Extensions",  duration: 90, price: 125 }], status: AppointmentStatus.confirmed, totalAmount: 125 },
+  { id: 409, clientName: "Mina Foley",    scheduledAt: daysFromNow(16, 10, 0), services: [{ serviceId: 2, name: "Classic Manicure",  duration: 45, price: 45  }], status: AppointmentStatus.pending,   totalAmount: 45  },
+  { id: 410, clientName: "Ines Hart",     scheduledAt: daysFromNow(18, 11, 0), services: [{ serviceId: 3, name: "Russian Manicure",  duration: 90, price: 150 }], status: AppointmentStatus.pending,   totalAmount: 150 },
+  { id: 411, clientName: "Lyra Cole",     scheduledAt: daysFromNow(21, 9, 30), services: [{ serviceId: 1, name: "Gel-X Extensions",  duration: 90, price: 125 }], status: AppointmentStatus.confirmed, totalAmount: 125 },
+  { id: 412, clientName: "Bria Noel",     scheduledAt: daysFromNow(21, 13, 0), services: [{ serviceId: 4, name: "Nail Art Design",   duration: 60, price: 85  }], status: AppointmentStatus.pending,   totalAmount: 85  },
+  { id: 413, clientName: "Cass Reid",     scheduledAt: daysFromNow(23, 10, 0), services: [{ serviceId: 2, name: "Classic Manicure",  duration: 45, price: 45  }], status: AppointmentStatus.pending,   totalAmount: 45  },
+  { id: 414, clientName: "Willa Young",   scheduledAt: daysFromNow(25, 14, 0), services: [{ serviceId: 3, name: "Russian Manicure",  duration: 90, price: 150 }], status: AppointmentStatus.confirmed, totalAmount: 150 },
+  { id: 415, clientName: "Pax Monroe",    scheduledAt: daysFromNow(28, 11, 30),services: [{ serviceId: 1, name: "Gel-X Extensions",  duration: 90, price: 125 }], status: AppointmentStatus.pending,   totalAmount: 125 },
+  { id: 416, clientName: "Andie Cross",   scheduledAt: daysFromNow(30, 10, 0), services: [{ serviceId: 4, name: "Nail Art Design",   duration: 60, price: 85  }], status: AppointmentStatus.pending,   totalAmount: 85  },
 ];
 
 const allTechApts = [
@@ -118,9 +136,15 @@ function getRange(view: string) {
     const to = new Date(todayStart); to.setDate(to.getDate() + 1);
     return { from, to };
   }
-  // past month: 30–60 days ago
-  const to = new Date(todayStart); to.setDate(to.getDate() - 29);
-  const from = new Date(todayStart); from.setDate(from.getDate() - 60);
+  if (view === "past") {
+    // past month: 30–60 days ago
+    const to = new Date(todayStart); to.setDate(to.getDate() - 29);
+    const from = new Date(todayStart); from.setDate(from.getDate() - 60);
+    return { from, to };
+  }
+  // next month: days 1–31 from tomorrow
+  const from = new Date(todayStart); from.setDate(from.getDate() + 1);
+  const to = new Date(todayStart); to.setDate(to.getDate() + 32);
   return { from, to };
 }
 
@@ -134,13 +158,14 @@ function formatDayLabel(date: Date) {
   return date.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
 }
 
-type View = "today" | "week" | "month" | "past";
+type View = "today" | "week" | "month" | "past" | "next";
 
 const VIEWS: { key: View; label: string }[] = [
   { key: "today", label: "Today" },
   { key: "week",  label: "This Week" },
   { key: "month", label: "This Month" },
   { key: "past",  label: "Past Month" },
+  { key: "next",  label: "Next Month" },
 ];
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -200,14 +225,16 @@ export function TechDashboard() {
   }, [filtered, view]);
 
   const isToday = view === "today";
-  const totalEarnings = filtered.filter(a => a.status === AppointmentStatus.completed)
+  const totalEarned = filtered.filter(a => a.status === AppointmentStatus.completed)
     .reduce((s, a) => s + (a.totalAmount ?? 0), 0);
+  const totalBooked = filtered.reduce((s, a) => s + (a.totalAmount ?? 0), 0);
 
   const subtitleMap: Record<View, string> = {
     today: `${filtered.length} appointment${filtered.length !== 1 ? "s" : ""} today`,
-    week:  `${filtered.length} appointments this week · $${totalEarnings} earned`,
-    month: `${filtered.length} appointments this month · $${totalEarnings} earned`,
-    past:  `${filtered.length} appointments last month · $${totalEarnings} earned`,
+    week:  `${filtered.length} appointments this week · $${totalEarned} earned`,
+    month: `${filtered.length} appointments this month · $${totalEarned} earned`,
+    past:  `${filtered.length} appointments last month · $${totalEarned} earned`,
+    next:  `${filtered.length} appointments coming up · $${totalBooked} booked`,
   };
 
   return (
@@ -257,12 +284,14 @@ export function TechDashboard() {
             <p className="text-xs text-muted-foreground mt-1">Appointments</p>
           </div>
           <div className="bg-white/5 rounded-xl p-4 text-center">
-            <p className="text-2xl font-bold text-primary">${totalEarnings}</p>
-            <p className="text-xs text-muted-foreground mt-1">Earned</p>
+            <p className="text-2xl font-bold text-primary">
+              ${view === "next" ? totalBooked : totalEarned}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">{view === "next" ? "Booked" : "Earned"}</p>
           </div>
           <div className="bg-white/5 rounded-xl p-4 text-center">
             <p className="text-2xl font-bold text-white">
-              {filtered.length > 0 ? `$${Math.round(totalEarnings / filtered.length)}` : "—"}
+              {filtered.length > 0 ? `$${Math.round((view === "next" ? totalBooked : totalEarned) / filtered.length)}` : "—"}
             </p>
             <p className="text-xs text-muted-foreground mt-1">Avg / Appt</p>
           </div>
