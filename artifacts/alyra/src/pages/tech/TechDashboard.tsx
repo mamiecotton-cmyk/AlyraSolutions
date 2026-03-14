@@ -19,8 +19,11 @@ export function TechDashboard() {
   const [blockForm, setBlockForm] = useState({ date: "", startTime: "", endTime: "", reason: "" });
 
   const handleStartService = (id: number) => {
-    setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: AppointmentStatus.in_progress } : a));
-    toast({ title: "Service started! Good luck." });
+    const now = new Date();
+    setAppointments(prev => prev.map(a =>
+      a.id === id ? { ...a, status: AppointmentStatus.in_progress, startedAt: now } : a
+    ));
+    toast({ title: `Service started at ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` });
   };
 
   const handleComplete = (id: number) => {
@@ -61,8 +64,14 @@ export function TechDashboard() {
           <Card key={apt.id} className={`glass-panel overflow-hidden border-l-4 ${apt.status === 'in_progress' ? 'border-l-primary' : apt.status === 'completed' ? 'border-l-green-500' : 'border-l-white/10'}`}>
             <CardContent className="p-0 flex flex-col md:flex-row">
               <div className="p-6 md:w-48 bg-white/5 flex flex-col justify-center border-b md:border-b-0 md:border-r border-white/5">
-                <span className="text-2xl font-bold text-white mb-1">{formatTime(apt.scheduledAt)}</span>
-                <span className="text-sm text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3"/> {apt.services[0]?.duration} mins</span>
+                <span className="text-2xl font-bold text-white mb-1">
+                  {(apt as any).startedAt
+                    ? (apt as any).startedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                    : formatTime(apt.scheduledAt)}
+                </span>
+                {(apt as any).startedAt
+                  ? <span className="text-xs text-primary flex items-center gap-1"><Clock className="w-3 h-3"/> Started now</span>
+                  : <span className="text-sm text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3"/> {apt.services[0]?.duration} mins</span>}
               </div>
               
               <div className="p-6 flex-1 flex flex-col justify-center">
