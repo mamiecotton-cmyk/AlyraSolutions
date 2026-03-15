@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 const NAIL_PAIRS = [[4,3],[8,7],[12,11],[16,15],[20,19]] as const;
 
 // ── Canvas drawing ────────────────────────────────────────────────────────────
+const DEBUG_LANDMARKS = true; // set false to hide dots
+
 function drawNailOverlay(
   canvas: HTMLCanvasElement,
   landmarkSets: Array<{x: number; y: number}[]>,
@@ -22,6 +24,27 @@ function drawNailOverlay(
   if (!ctx) return;
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
+
+  if (DEBUG_LANDMARKS) {
+    // Draw all 21 landmarks as small labeled circles
+    const COLORS = ["#ff0","#0ff","#f0f","#f80","#0f8"];
+    const FINGER_GROUPS = [[0],[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16],[17,18,19,20]];
+    for (const lms of landmarkSets) {
+      FINGER_GROUPS.forEach((group, gi) => {
+        group.forEach(idx => {
+          const lm = lms[idx];
+          ctx.beginPath();
+          ctx.arc(lm.x * W, lm.y * H, Math.max(4, W * 0.008), 0, Math.PI * 2);
+          ctx.fillStyle = COLORS[gi % COLORS.length];
+          ctx.fill();
+          ctx.fillStyle = "#000";
+          ctx.font = `bold ${Math.max(8, W * 0.014)}px sans-serif`;
+          ctx.fillText(String(idx), lm.x * W + 4, lm.y * H - 4);
+        });
+      });
+    }
+    return; // skip nail drawing while debugging
+  }
 
   for (const lms of landmarkSets) {
     for (const [tipIdx, baseIdx] of NAIL_PAIRS) {
