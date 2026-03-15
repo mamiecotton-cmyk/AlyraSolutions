@@ -138,17 +138,39 @@ export function VirtualTryOn() {
     try {
       const landmarker = await getHandLandmarker();
 
-      const img = new Image();
-      img.src = url;
-      await new Promise<void>((res, rej) => {
-        img.onload  = () => res();
-        img.onerror = () => rej(new Error("Image load failed"));
-      });
+      // Decode image → resize if too large → draw onto a canvas and pass
+      // the canvas to detect(). HTMLCanvasElement is the most reliable
+      // ImageSource for MediaPipe v0.10.32.  Large phone-camera images
+      // (4000×3000+) cause an empty {} throw inside the WASM runtime, so
+      // we cap at 1280px on the longest edge before detection.
+      const MAX_PX = 1280;
 
-      const result = landmarker.detect(img);
+      const rawBitmap = await (async () => {
+        if (url.startsWith("data:")) {
+          const [header, b64] = url.split(",");
+          const mime   = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
+          const binary = atob(b64);
+          const bytes  = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          return createImageBitmap(new Blob([bytes], { type: mime }));
+        }
+        return createImageBitmap(await fetch(url).then(r => r.blob()));
+      })();
 
-      if (!result.landmarks || result.landmarks.length === 0) {
-        setErrorMsg("No hand detected. Try a well-lit photo with fingers spread apart.");
+      const scale  = Math.min(1, MAX_PX / Math.max(rawBitmap.width, rawBitmap.height));
+      const W      = Math.round(rawBitmap.width  * scale);
+      const H      = Math.round(rawBitmap.height * scale);
+
+      const offscreen = document.createElement("canvas");
+      offscreen.width  = W;
+      offscreen.height = H;
+      offscreen.getContext("2d")!.drawImage(rawBitmap, 0, 0, W, H);
+      rawBitmap.close();
+
+      const result = landmarker.detect(offscreen);
+
+      if (!result || !result.landmarks || result.landmarks.length === 0) {
+        setErrorMsg("No hand detected. Try a well-lit photo with fingers spread apart and good lighting.");
         setStage("error");
         return;
       }
@@ -164,9 +186,12 @@ export function VirtualTryOn() {
       setStage("ready");
     } catch (err: any) {
       console.error("[VirtualTryOn] model/detect error:", err);
-      const msg = err?.message?.includes("No hand") 
-        ? "No hand detected. Try a well-lit photo with fingers spread apart."
-        : "Couldn't load the AI model. Please try again.";
+      // MediaPipe sometimes throws an empty object {} — treat it as a
+      // detection failure rather than a model-load failure.
+      const hasMsg = err && typeof err.message === "string" && err.message.length > 0;
+      const msg = hasMsg
+        ? err.message
+        : "No hand detected. Make sure your hand is clearly visible with good lighting and fingers spread apart, then try again.";
       setErrorMsg(msg);
       setStage("error");
     }
