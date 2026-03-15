@@ -104,6 +104,18 @@ export function VirtualTryOn() {
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const videoRef   = useRef<HTMLVideoElement>(null);
   const streamRef  = useRef<MediaStream | null>(null);
+  // Track blob URLs so we can revoke them when no longer needed
+  const blobUrlRef = useRef<string | null>(null);
+
+  // Revoke previous blob URL whenever photoUrl changes or on unmount
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, [photoUrl]);
 
   // ── Overlay rendering effect ────────────────────────────────────────────────
   useEffect(() => {
@@ -129,69 +141,64 @@ export function VirtualTryOn() {
     }
   }, [stage, landmarks, selectedId]);
 
-  // ── Run hand detection on a loaded image URL ────────────────────────────────
+  // ── Run hand detection ───────────────────────────────────────────────────────
+  // Strategy: load url into an <img>, draw to a capped-size canvas,
+  // extract raw ImageData (RGBA bytes), and feed that to detect().
+  // ImageData has no "origin" concept so it bypasses every WebGL
+  // cross-origin texture restriction that can cause silent {} errors.
   const detectAndShow = useCallback(async (url: string) => {
     setStage("detecting");
+    // Track blob URL for cleanup; data URLs and other non-blob strings are ignored
+    if (url.startsWith("blob:")) blobUrlRef.current = url;
     setPhotoUrl(url);
     setErrorMsg("");
 
     try {
       const landmarker = await getHandLandmarker();
 
-      // Decode image → resize if too large → draw onto a canvas and pass
-      // the canvas to detect(). HTMLCanvasElement is the most reliable
-      // ImageSource for MediaPipe v0.10.32.  Large phone-camera images
-      // (4000×3000+) cause an empty {} throw inside the WASM runtime, so
-      // we cap at 1280px on the longest edge before detection.
-      const MAX_PX = 1280;
+      // Load image into a browser-decoded element
+      const imgEl = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload  = () => resolve(img);
+        img.onerror = () => reject(new Error("Image failed to load"));
+        img.src = url;
+      });
 
-      const rawBitmap = await (async () => {
-        if (url.startsWith("data:")) {
-          const [header, b64] = url.split(",");
-          const mime   = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
-          const binary = atob(b64);
-          const bytes  = new Uint8Array(binary.length);
-          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-          return createImageBitmap(new Blob([bytes], { type: mime }));
-        }
-        return createImageBitmap(await fetch(url).then(r => r.blob()));
-      })();
+      // Cap at 1024px — large phone-camera images (4000×3000+) cause
+      // out-of-memory errors inside the WASM runtime.
+      const MAX_PX = 1024;
+      const longest = Math.max(imgEl.naturalWidth || 1, imgEl.naturalHeight || 1);
+      const scale   = Math.min(1, MAX_PX / longest);
+      const W = Math.max(1, Math.round((imgEl.naturalWidth  || 300) * scale));
+      const H = Math.max(1, Math.round((imgEl.naturalHeight || 300) * scale));
 
-      const scale  = Math.min(1, MAX_PX / Math.max(rawBitmap.width, rawBitmap.height));
-      const W      = Math.round(rawBitmap.width  * scale);
-      const H      = Math.round(rawBitmap.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width  = W;
+      canvas.height = H;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+      ctx.drawImage(imgEl, 0, 0, W, H);
 
-      const offscreen = document.createElement("canvas");
-      offscreen.width  = W;
-      offscreen.height = H;
-      offscreen.getContext("2d")!.drawImage(rawBitmap, 0, 0, W, H);
-      rawBitmap.close();
+      // Pass raw RGBA ImageData — avoids WebGL cross-origin texture issues
+      const imageData = ctx.getImageData(0, 0, W, H);
+      const result    = landmarker.detect(imageData);
 
-      const result = landmarker.detect(offscreen);
-
-      if (!result || !result.landmarks || result.landmarks.length === 0) {
-        setErrorMsg("No hand detected. Try a well-lit photo with fingers spread apart and good lighting.");
+      if (!result?.landmarks?.length) {
+        setErrorMsg("No hand detected. Try a clear, well-lit photo with all fingers spread apart, taken from above.");
         setStage("error");
         return;
       }
 
       setLandmarks(result.landmarks);
-
-      // Auto-pick first in-stock color
       if (!selectedId) {
         const first = MOCK_COLORS.find(c => c.inStock);
         if (first) setSelectedId(first.id);
       }
-
       setStage("ready");
     } catch (err: any) {
-      console.error("[VirtualTryOn] model/detect error:", err);
-      // MediaPipe sometimes throws an empty object {} — treat it as a
-      // detection failure rather than a model-load failure.
-      const hasMsg = err && typeof err.message === "string" && err.message.length > 0;
-      const msg = hasMsg
+      console.error("[VirtualTryOn] detect error:", err);
+      const msg = (typeof err?.message === "string" && err.message.length > 0)
         ? err.message
-        : "No hand detected. Make sure your hand is clearly visible with good lighting and fingers spread apart, then try again.";
+        : "Something went wrong running the AI. Please try again.";
       setErrorMsg(msg);
       setStage("error");
     }
@@ -224,17 +231,22 @@ export function VirtualTryOn() {
     c.height = video.videoHeight;
     c.getContext("2d")!.drawImage(video, 0, 0);
     stopCamera();
-    detectAndShow(c.toDataURL("image/jpeg", 0.92));
+    // Use toBlob → object URL so the resulting <img> load is same-origin
+    // and the canvas stays untainted for getImageData().
+    c.toBlob(blob => {
+      if (!blob) return;
+      const objUrl = URL.createObjectURL(blob);
+      detectAndShow(objUrl);
+    }, "image/jpeg", 0.92);
   };
 
   // ── File upload ────────────────────────────────────────────────────────────
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => detectAndShow(ev.target!.result as string);
-    reader.readAsDataURL(file);
-    // Reset input so same file can be re-selected
+    // Object URL keeps the image same-origin so getImageData() never throws.
+    const objUrl = URL.createObjectURL(file);
+    detectAndShow(objUrl);
     e.target.value = "";
   };
 
