@@ -72,14 +72,12 @@ let cachedLandmarker: HandLandmarkerAny | null = null;
 
 async function getHandLandmarker(): Promise<HandLandmarkerAny> {
   if (cachedLandmarker) return cachedLandmarker;
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   const { HandLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision");
-  const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
-  );
+  const vision = await FilesetResolver.forVisionTasks(`${base}/mediapipe-wasm`);
   cachedLandmarker = await HandLandmarker.createFromOptions(vision, {
     baseOptions: {
-      modelAssetPath:
-        "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+      modelAssetPath: `${base}/mediapipe-models/hand_landmarker.task`,
       delegate: "CPU",
     },
     runningMode: "IMAGE",
@@ -165,7 +163,11 @@ export function VirtualTryOn() {
 
       setStage("ready");
     } catch (err: any) {
-      setErrorMsg("Couldn't load the AI model. Check your connection and try again.");
+      console.error("[VirtualTryOn] model/detect error:", err);
+      const msg = err?.message?.includes("No hand") 
+        ? "No hand detected. Try a well-lit photo with fingers spread apart."
+        : "Couldn't load the AI model. Please try again.";
+      setErrorMsg(msg);
       setStage("error");
     }
   }, [selectedId]);
