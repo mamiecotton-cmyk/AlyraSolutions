@@ -34,9 +34,15 @@ function drawNailOverlay(
       const segLen = Math.sqrt(dx * dx + dy * dy);
       const angle  = Math.atan2(dy, dx);
 
-      const nH  = segLen * 0.92;
-      const nW  = nH * 0.72;
-      const rad = nW * 0.42;
+      // Nail plate anatomy:
+      //   y < 0  → free edge (past fingertip)
+      //   y = 0  → fingertip landmark
+      //   y > 0  → toward DIP (knuckle)
+      // Visible nail covers ~65% of tip→DIP, starting just past the free edge.
+      const nH     = segLen * 0.66;   // height of nail plate
+      const nW     = nH * 0.74;       // width slightly narrower than height
+      const rad    = nW * 0.44;       // tip rounding
+      const startY = -segLen * 0.06;  // offset nail to start just past the free edge
 
       ctx.save();
       ctx.translate(tx, ty);
@@ -46,19 +52,19 @@ function drawNailOverlay(
       ctx.globalAlpha = 0.86;
       ctx.fillStyle = hex;
       ctx.beginPath();
-      ctx.roundRect(-nW / 2, 0, nW, nH, [rad, rad, nW * 0.2, nW * 0.2]);
+      ctx.roundRect(-nW / 2, startY, nW, nH, [rad, rad, nW * 0.18, nW * 0.18]);
       ctx.fill();
 
       // ── Glossy shine highlight ──
       ctx.globalAlpha = 1;
-      const shine = ctx.createLinearGradient(-nW / 2, 0, nW / 2, 0);
+      const shine = ctx.createLinearGradient(-nW / 2, startY, nW / 2, startY);
       shine.addColorStop(0,    "rgba(255,255,255,0)");
       shine.addColorStop(0.22, "rgba(255,255,255,0.42)");
       shine.addColorStop(0.62, "rgba(255,255,255,0.08)");
       shine.addColorStop(1,    "rgba(255,255,255,0)");
       ctx.fillStyle = shine;
       ctx.beginPath();
-      ctx.roundRect(-nW / 2, nH * 0.04, nW, nH * 0.52, [rad, rad, 0, 0]);
+      ctx.roundRect(-nW / 2, startY + nH * 0.04, nW, nH * 0.52, [rad, rad, 0, 0]);
       ctx.fill();
 
       ctx.restore();
@@ -120,13 +126,17 @@ export function VirtualTryOn() {
     if (!color) return;
 
     const render = () => {
-      // Use the element's actual CSS pixel dimensions so the canvas covers
-      // exactly what's visible — no letterbox offset from objectFit.
-      const W = img.clientWidth  || img.naturalWidth;
-      const H = img.clientHeight || img.naturalHeight;
+      // getBoundingClientRect gives sub-pixel-accurate CSS dimensions;
+      // round to nearest integer for the canvas drawing buffer.
+      const rect = img.getBoundingClientRect();
+      const W = Math.round(rect.width)  || img.naturalWidth;
+      const H = Math.round(rect.height) || img.naturalHeight;
       if (!W || !H) return;
       canvas.width  = W;
       canvas.height = H;
+      // Keep canvas CSS size explicitly in sync with measured image size.
+      canvas.style.width  = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
       drawNailOverlay(canvas, landmarks, color.colorCode);
     };
 
@@ -461,7 +471,6 @@ export function VirtualTryOn() {
                 <canvas
                   ref={overlayRef}
                   className="absolute top-0 left-0 pointer-events-none rounded-2xl"
-                  style={{ width: "100%", height: "100%" }}
                 />
               </div>
               <button
