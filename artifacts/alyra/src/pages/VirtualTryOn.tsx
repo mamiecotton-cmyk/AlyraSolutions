@@ -241,13 +241,37 @@ export function VirtualTryOn() {
   };
 
   // ── File upload ────────────────────────────────────────────────────────────
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Object URL keeps the image same-origin so getImageData() never throws.
+    e.target.value = "";
+
+    const isHeic =
+      file.type === "image/heic" ||
+      file.type === "image/heif" ||
+      /\.(heic|heif)$/i.test(file.name);
+
+    if (isHeic) {
+      // HEIC is not natively decodable by most desktop browsers.
+      // Convert to JPEG in-browser before detection.
+      setStage("detecting");
+      setPhotoUrl(null);
+      setErrorMsg("");
+      try {
+        const heic2any = (await import("heic2any")).default;
+        const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
+        const jpegBlob = Array.isArray(converted) ? converted[0] : converted;
+        const objUrl = URL.createObjectURL(jpegBlob);
+        detectAndShow(objUrl);
+      } catch {
+        setErrorMsg("Couldn't convert your HEIC photo. Please export it as a JPEG or PNG from your Photos app and try again.");
+        setStage("error");
+      }
+      return;
+    }
+
     const objUrl = URL.createObjectURL(file);
     detectAndShow(objUrl);
-    e.target.value = "";
   };
 
   // ── Reset ──────────────────────────────────────────────────────────────────
@@ -321,9 +345,9 @@ export function VirtualTryOn() {
                 </div>
                 <div>
                   <p className="font-semibold text-white">Upload a Photo</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">JPG, PNG, WEBP</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">JPG, PNG, WEBP, HEIC</p>
                 </div>
-                <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
+                <input type="file" accept="image/*,.heic,.heif" className="hidden" onChange={handleFile} />
               </label>
             </div>
 
@@ -373,8 +397,8 @@ export function VirtualTryOn() {
               </div>
             </div>
             <div className="text-center">
-              <p className="text-white font-semibold text-lg">Detecting your nails…</p>
-              <p className="text-muted-foreground text-sm mt-1">AI is mapping your hand landmarks</p>
+              <p className="text-white font-semibold text-lg">Analyzing your photo…</p>
+              <p className="text-muted-foreground text-sm mt-1">Converting &amp; mapping your hand landmarks</p>
             </div>
             {photoUrl && (
               <img src={photoUrl} alt="" className="w-40 h-28 object-cover rounded-xl opacity-30 blur-sm mt-2" />

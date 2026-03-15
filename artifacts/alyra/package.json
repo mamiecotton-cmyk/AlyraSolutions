@@ -75,6 +75,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "^0.10.32"
+    "@mediapipe/tasks-vision": "^0.10.32",
+    "heic2any": "^0.0.4"
   }
 }
