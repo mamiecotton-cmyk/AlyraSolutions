@@ -9,8 +9,27 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 // ── MediaPipe landmark pairs: [fingertip idx, base idx] ──────────────────────
-// MediaPipe 21-point hand model: tip=4/8/12/16/20, base of nail=3/7/11/15/19
-const NAIL_PAIRS = [[4,3],[8,7],[12,11],[16,15],[20,19]] as const;
+// MediaPipe 21-point hand model:
+//   tip=4/8/12/16/20, DIP=3/7/11/15/19, PIP=2/6/10/14/18, MCP=1/5/9/13/17
+// For each finger we also need the MCP of the adjacent finger so we can
+// compute the true lateral (side-to-side) orientation of the nail plate.
+//
+// Layout for angle computation per finger:
+//   [tipIdx, dipIdx, mcpLeft, mcpRight]
+//   mcpLeft / mcpRight = adjacent MCP joints that bracket this finger.
+//   For the thumb we use a custom approach using CMC (0) and MCP (1).
+const NAIL_DEFS = [
+  // thumb: tip=4, dip=3, use wrist(0) and index-MCP(5) for lateral ref
+  { tip: 4,  dip: 3,  latA: 0,  latB: 5  },
+  // index: tip=8, dip=7, lateral = thumb-MCP(1) ↔ middle-MCP(9)
+  { tip: 8,  dip: 7,  latA: 5,  latB: 9  },
+  // middle: tip=12, dip=11, lateral = index-MCP(5) ↔ ring-MCP(13)
+  { tip: 12, dip: 11, latA: 9,  latB: 13 },
+  // ring: tip=16, dip=15, lateral = middle-MCP(9) ↔ pinky-MCP(17)
+  { tip: 16, dip: 15, latA: 13, latB: 17 },
+  // pinky: tip=20, dip=19, lateral = ring-MCP(13) ↔ wrist(0) side
+  { tip: 20, dip: 19, latA: 13, latB: 17 },
+] as const;
 
 // ── Canvas drawing ────────────────────────────────────────────────────────────
 function drawNailOverlay(
@@ -24,31 +43,53 @@ function drawNailOverlay(
   ctx.clearRect(0, 0, W, H);
 
   for (const lms of landmarkSets) {
-    for (const [tipIdx, baseIdx] of NAIL_PAIRS) {
-      const tip  = lms[tipIdx];
-      const base = lms[baseIdx];
+    for (const def of NAIL_DEFS) {
+      const tip  = lms[def.tip];
+      const dip  = lms[def.dip];
+      const latA = lms[def.latA];
+      const latB = lms[def.latB];
 
-      const tx = tip.x  * W,  ty = tip.y  * H;
-      const bx = base.x * W,  by = base.y * H;
-      const dx = tx - bx, dy = ty - by;
-      const segLen = Math.sqrt(dx * dx + dy * dy);
-      const angle  = Math.atan2(dy, dx);
+      // ── Finger axis (tip → DIP, pointing "into" the finger) ──
+      const ax = (dip.x - tip.x) * W;
+      const ay = (dip.y - tip.y) * H;
+      const axLen = Math.sqrt(ax * ax + ay * ay) || 1;
+      // Normalised finger axis
+      const anx = ax / axLen, any = ay / axLen;
 
-      // MediaPipe places fingertip landmarks at the soft-tissue tip center,
-      // which lands slightly below the actual nail free edge in a 2D image.
-      // Compensate by starting the nail 20% of the segment length PAST the
-      // tip landmark (toward the free edge), then covering ~65% of the segment.
-      //   local y < 0 → past fingertip (free edge direction)
-      //   local y = 0 → at the fingertip landmark
-      //   local y > 0 → toward DIP joint
-      const nH     = segLen * 0.68;
-      const nW     = nH * 0.76;
-      const rad    = nW * 0.46;
-      const startY = -segLen * 0.20;   // start well past the tip at the free edge
+      // ── Lateral axis (across adjacent knuckles, left→right of finger) ──
+      const lx = (latB.x - latA.x) * W;
+      const ly = (latB.y - latA.y) * H;
+      const lLen = Math.sqrt(lx * lx + ly * ly) || 1;
+      const lnx = lx / lLen, lny = ly / lLen;
+
+      // The nail plate normal = finger axis, but corrected so it is exactly
+      // perpendicular to the lateral axis.  We do this by taking the
+      // component of the finger axis that is perpendicular to the lateral:
+      //   perp = fingerAxis − (fingerAxis · lateralAxis) * lateralAxis
+      const dot  = anx * lnx + any * lny;
+      const px   = anx - dot * lnx;
+      const py   = any - dot * lny;
+      const pLen = Math.sqrt(px * px + py * py) || 1;
+
+      // Nail angle: the corrected "into the finger" direction
+      const nailAngle = Math.atan2(py / pLen, px / pLen);
+
+      const segLen = axLen;          // tip→DIP distance
+      const nH     = segLen * 0.75; // nail height (along finger axis)
+      const nW     = nH * 0.80;     // nail width (across finger)
+      const rad    = nW * 0.45;
+
+      // Start slightly past the tip (into free-edge territory) — MediaPipe
+      // places tip landmarks at the soft tissue center, which is a few px
+      // below the actual nail free edge visually.
+      const startY = -segLen * 0.18;
+
+      const tx = tip.x * W;
+      const ty = tip.y * H;
 
       ctx.save();
       ctx.translate(tx, ty);
-      ctx.rotate(angle + Math.PI / 2);
+      ctx.rotate(nailAngle + Math.PI / 2);
 
       // ── Nail polish body ──
       ctx.globalAlpha = 0.85;
