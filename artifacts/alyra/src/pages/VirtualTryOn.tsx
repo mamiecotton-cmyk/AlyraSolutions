@@ -15,20 +15,20 @@ import { useToast } from "@/hooks/use-toast";
 // compute the true lateral (side-to-side) orientation of the nail plate.
 //
 // Layout for angle computation per finger:
-//   [tipIdx, dipIdx, mcpLeft, mcpRight]
-//   mcpLeft / mcpRight = adjacent MCP joints that bracket this finger.
-//   For the thumb we use a custom approach using CMC (0) and MCP (1).
+//   [tipIdx, dipIdx, lateralA, lateralB]
+//   lateralA / lateralB are the nearest stable knuckle points for estimating
+//   the local side-to-side direction of the nail bed.
+//   Each finger also has small per-finger tuning constants for width, height,
+//   and cuticle/tip coverage because edge fingers and the thumb sit differently.
+// heightScale: nail plate height as a fraction of the tip→DIP segment length.
+// widthScale:  nail width as a fraction of nail height.
+// dipFrac:     how far along tip→DIP to place the CENTER of the overlay (0 = at tip, 1 = at DIP).
 const NAIL_DEFS = [
-  // Thumb: tip=4, ip=3, lateral = thumb-MCP(2)→index-MCP(5).
-  // thumbMode=true: raw distal axis + dorsal-surface offset.
-  { tip: 4,  dip: 3,  latA: 2,  latB: 5,  thumbMode: true  },
-  // Fingers: ALL use the same global lateral: index-MCP(5)→pinky-MCP(17).
-  // A single shared lateral gives consistent Gram-Schmidt results across
-  // every finger regardless of how the hand is angled or spread.
-  { tip: 8,  dip: 7,  latA: 5,  latB: 17, thumbMode: false },
-  { tip: 12, dip: 11, latA: 5,  latB: 17, thumbMode: false },
-  { tip: 16, dip: 15, latA: 5,  latB: 17, thumbMode: false },
-  { tip: 20, dip: 19, latA: 5,  latB: 17, thumbMode: false },
+  { tip: 4,  dip: 3,  latA: 2,  latB: 5,  thumbMode: true,  heightScale: 0.69, widthScale: 0.80, dipFrac: 0.22 },
+  { tip: 8,  dip: 7,  latA: 5,  latB: 9,  thumbMode: false, heightScale: 0.67, widthScale: 0.70, dipFrac: 0.22 },
+  { tip: 12, dip: 11, latA: 9,  latB: 13, thumbMode: false, heightScale: 0.67, widthScale: 0.72, dipFrac: 0.22 },
+  { tip: 16, dip: 15, latA: 13, latB: 17, thumbMode: false, heightScale: 0.65, widthScale: 0.68, dipFrac: 0.22 },
+  { tip: 20, dip: 19, latA: 13, latB: 17, thumbMode: false, heightScale: 0.62, widthScale: 0.60, dipFrac: 0.20 },
 ] as const;
 
 // ── Canvas drawing ────────────────────────────────────────────────────────────
@@ -54,69 +54,53 @@ function drawNailOverlay(
       const ay = (dip.y - tip.y) * H;
       const axLen = Math.sqrt(ax * ax + ay * ay) || 1;
 
-      let nailAngle: number;
+      let dirX = ax / axLen;
+      let dirY = ay / axLen;
 
       if (def.thumbMode) {
-        // ── Thumb: raw distal axis only ──────────────────────────────────────
-        // The thumb's distal phalanx points in a very different direction from
-        // the palm plane, so using any Gram-Schmidt correction based on
-        // adjacent MCPs rotates the nail into the wrong orientation.
-        // The raw tip→IP axis is all we need: rotate(rawAngle + π/2) below
-        // will correctly align the nail height along the thumb's distal axis.
-        nailAngle = Math.atan2(ay, ax);
+        // The thumbnail follows the raw distal axis more closely than the
+        // other fingers, so we keep the uncorrected direction here.
       } else {
-        // ── Fingers: Gram-Schmidt correction ────────────────────────────────
-        // Project the finger axis to be exactly perpendicular to the lateral
-        // (across-knuckle) axis, removing any in-plane lean.
-        const anx = ax / axLen, any = ay / axLen;
+        // Project the finger axis to be perpendicular to the local lateral
+        // axis, then blend with the raw direction so spread fingers still
+        // keep a natural lean instead of snapping overly upright.
         const lx = (latB.x - latA.x) * W;
         const ly = (latB.y - latA.y) * H;
         const lLen = Math.sqrt(lx * lx + ly * ly) || 1;
         const lnx  = lx / lLen, lny = ly / lLen;
 
-        const dot = anx * lnx + any * lny;
-        const px  = anx - dot * lnx;
-        const py  = any - dot * lny;
+        const dot = dirX * lnx + dirY * lny;
+        const px  = dirX - dot * lnx;
+        const py  = dirY - dot * lny;
         const pLen = Math.sqrt(px * px + py * py) || 1;
-        nailAngle = Math.atan2(py / pLen, px / pLen);
+        const projX = px / pLen;
+        const projY = py / pLen;
+        const blendX = dirX * 0.45 + projX * 0.55;
+        const blendY = dirY * 0.45 + projY * 0.55;
+        const blendLen = Math.sqrt(blendX * blendX + blendY * blendY) || 1;
+        dirX = blendX / blendLen;
+        dirY = blendY / blendLen;
       }
 
-      const segLen = axLen;          // tip→DIP distance
-      const nH     = segLen * 0.75; // nail height (along finger axis)
-      const nW     = nH * 0.80;     // nail width (across finger)
-      const rad    = nW * 0.45;
+      const nailAngle = Math.atan2(dirY, dirX);
 
-      // Start slightly past the tip (into free-edge territory) — MediaPipe
-      // places tip landmarks at the soft tissue center, which is a few px
-      // below the actual nail free edge visually.
-      const startY = -segLen * 0.18;
+      const segLen = axLen;          // tip→DIP distance in pixels
+      const nH     = segLen * def.heightScale;
+      const nW     = nH * def.widthScale;
+      const rad    = nW * 0.42;
 
       const tx = tip.x * W;
       const ty = tip.y * H;
 
-      ctx.save();
+      // Place the overlay center at dipFrac of the way from tip toward DIP.
+      // dipFrac ≈ 0.38 means the center sits just past the free edge of the nail
+      // (tip landmark is at the very end of the finger), so the overlay spans
+      // from slightly beyond the fingertip down to the cuticle line.
+      const centerX = tx + dirX * segLen * def.dipFrac;
+      const centerY = ty + dirY * segLen * def.dipFrac;
 
-      if (def.thumbMode) {
-        // The thumbnail sits on the DORSAL (top) surface of the thumb.
-        // MediaPipe's tip landmark (4) is at the fingertip center, not on
-        // the dorsal face.  Shift the anchor toward the dorsal surface by
-        // projecting the lateral vector (thumb-MCP→index-MCP) perpendicular
-        // to the thumb axis — that perpendicular component points directly
-        // toward the back of the hand (where the nail is visible).
-        const lx  = (latB.x - latA.x) * W;
-        const ly  = (latB.y - latA.y) * H;
-        const lLen = Math.sqrt(lx * lx + ly * ly) || 1;
-        const anx = ax / axLen, any = ay / axLen;
-        const lnx = lx / lLen,  lny = ly / lLen;
-        // Remove the component parallel to thumb axis → purely dorsal
-        const ldot = lnx * anx + lny * any;
-        const dox  = lnx - ldot * anx;
-        const doy  = lny - ldot * any;
-        const dLen = Math.sqrt(dox * dox + doy * doy) || 1;
-        ctx.translate(tx + (dox / dLen) * nW * 0.42, ty + (doy / dLen) * nW * 0.42);
-      } else {
-        ctx.translate(tx, ty);
-      }
+      ctx.save();
+      ctx.translate(centerX, centerY);
 
       ctx.rotate(nailAngle + Math.PI / 2);
 
@@ -124,19 +108,19 @@ function drawNailOverlay(
       ctx.globalAlpha = 0.85;
       ctx.fillStyle = hex;
       ctx.beginPath();
-      ctx.roundRect(-nW / 2, startY, nW, nH, [nW * 0.18, nW * 0.18, rad, rad]);
+      ctx.roundRect(-nW / 2, -nH / 2, nW, nH, [nW * 0.18, nW * 0.18, rad, rad]);
       ctx.fill();
 
       // ── Glossy shine highlight ──
       ctx.globalAlpha = 1;
-      const shine = ctx.createLinearGradient(-nW / 2, startY, nW / 2, startY);
+      const shine = ctx.createLinearGradient(-nW / 2, -nH / 2, nW / 2, -nH / 2);
       shine.addColorStop(0,    "rgba(255,255,255,0)");
       shine.addColorStop(0.22, "rgba(255,255,255,0.42)");
       shine.addColorStop(0.62, "rgba(255,255,255,0.08)");
       shine.addColorStop(1,    "rgba(255,255,255,0)");
       ctx.fillStyle = shine;
       ctx.beginPath();
-      ctx.roundRect(-nW / 2, startY + nH * 0.04, nW, nH * 0.50, [rad, rad, 0, 0]);
+      ctx.roundRect(-nW / 2, -nH / 2 + nH * 0.04, nW, nH * 0.50, [rad, rad, 0, 0]);
       ctx.fill();
 
       ctx.restore();
