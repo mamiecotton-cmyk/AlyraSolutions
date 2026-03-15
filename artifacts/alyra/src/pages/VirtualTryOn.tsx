@@ -104,18 +104,10 @@ export function VirtualTryOn() {
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const videoRef   = useRef<HTMLVideoElement>(null);
   const streamRef  = useRef<MediaStream | null>(null);
-  // Track blob URLs so we can revoke them when no longer needed
+  // Track the current blob URL so we can revoke it when it's no longer needed.
+  // Important: do NOT revoke in a useEffect tied to photoUrl — React's cleanup
+  // fires before the next paint, which revokes the URL before new Image() loads it.
   const blobUrlRef = useRef<string | null>(null);
-
-  // Revoke previous blob URL whenever photoUrl changes or on unmount
-  useEffect(() => {
-    return () => {
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
-      }
-    };
-  }, [photoUrl]);
 
   // ── Overlay rendering effect ────────────────────────────────────────────────
   useEffect(() => {
@@ -147,9 +139,14 @@ export function VirtualTryOn() {
   // ImageData has no "origin" concept so it bypasses every WebGL
   // cross-origin texture restriction that can cause silent {} errors.
   const detectAndShow = useCallback(async (url: string) => {
-    setStage("detecting");
-    // Track blob URL for cleanup; data URLs and other non-blob strings are ignored
+    // Revoke the PREVIOUS blob URL now that we're starting a new detection.
+    // We do this before updating blobUrlRef so we never revoke the new URL.
+    if (blobUrlRef.current && blobUrlRef.current !== url) {
+      URL.revokeObjectURL(blobUrlRef.current);
+    }
     if (url.startsWith("blob:")) blobUrlRef.current = url;
+
+    setStage("detecting");
     setPhotoUrl(url);
     setErrorMsg("");
 
@@ -277,6 +274,11 @@ export function VirtualTryOn() {
   // ── Reset ──────────────────────────────────────────────────────────────────
   const reset = () => {
     stopCamera();
+    // Now it's safe to revoke — we're done with the photo entirely
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
     setStage("idle");
     setPhotoUrl(null);
     setLandmarks(null);
