@@ -19,17 +19,16 @@ import { useToast } from "@/hooks/use-toast";
 //   mcpLeft / mcpRight = adjacent MCP joints that bracket this finger.
 //   For the thumb we use a custom approach using CMC (0) and MCP (1).
 const NAIL_DEFS = [
-  // Thumb: tip=4, ip=3.
-  // The thumb is anatomically rotated ~90° vs the fingers.
-  // Use the thumb-MCP(2)→index-MCP(5) vector as the lateral reference —
-  // it runs across the base of the thumb and is reliably perpendicular
-  // to the thumb's distal axis regardless of hand orientation.
+  // Thumb: tip=4, ip=3, lateral = thumb-MCP(2)→index-MCP(5).
+  // thumbMode=true: raw distal axis + dorsal-surface offset.
   { tip: 4,  dip: 3,  latA: 2,  latB: 5,  thumbMode: true  },
-  // Fingers: lateral = adjacent MCP pair (left ↔ right of each finger)
-  { tip: 8,  dip: 7,  latA: 5,  latB: 9,  thumbMode: false },
-  { tip: 12, dip: 11, latA: 9,  latB: 13, thumbMode: false },
-  { tip: 16, dip: 15, latA: 13, latB: 17, thumbMode: false },
-  { tip: 20, dip: 19, latA: 13, latB: 17, thumbMode: false },
+  // Fingers: ALL use the same global lateral: index-MCP(5)→pinky-MCP(17).
+  // A single shared lateral gives consistent Gram-Schmidt results across
+  // every finger regardless of how the hand is angled or spread.
+  { tip: 8,  dip: 7,  latA: 5,  latB: 17, thumbMode: false },
+  { tip: 12, dip: 11, latA: 5,  latB: 17, thumbMode: false },
+  { tip: 16, dip: 15, latA: 5,  latB: 17, thumbMode: false },
+  { tip: 20, dip: 19, latA: 5,  latB: 17, thumbMode: false },
 ] as const;
 
 // ── Canvas drawing ────────────────────────────────────────────────────────────
@@ -96,7 +95,29 @@ function drawNailOverlay(
       const ty = tip.y * H;
 
       ctx.save();
-      ctx.translate(tx, ty);
+
+      if (def.thumbMode) {
+        // The thumbnail sits on the DORSAL (top) surface of the thumb.
+        // MediaPipe's tip landmark (4) is at the fingertip center, not on
+        // the dorsal face.  Shift the anchor toward the dorsal surface by
+        // projecting the lateral vector (thumb-MCP→index-MCP) perpendicular
+        // to the thumb axis — that perpendicular component points directly
+        // toward the back of the hand (where the nail is visible).
+        const lx  = (latB.x - latA.x) * W;
+        const ly  = (latB.y - latA.y) * H;
+        const lLen = Math.sqrt(lx * lx + ly * ly) || 1;
+        const anx = ax / axLen, any = ay / axLen;
+        const lnx = lx / lLen,  lny = ly / lLen;
+        // Remove the component parallel to thumb axis → purely dorsal
+        const ldot = lnx * anx + lny * any;
+        const dox  = lnx - ldot * anx;
+        const doy  = lny - ldot * any;
+        const dLen = Math.sqrt(dox * dox + doy * doy) || 1;
+        ctx.translate(tx + (dox / dLen) * nW * 0.42, ty + (doy / dLen) * nW * 0.42);
+      } else {
+        ctx.translate(tx, ty);
+      }
+
       ctx.rotate(nailAngle + Math.PI / 2);
 
       // ── Nail polish body ──
