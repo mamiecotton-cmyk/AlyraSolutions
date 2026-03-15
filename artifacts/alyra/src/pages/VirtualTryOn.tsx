@@ -124,7 +124,7 @@ function drawNailOverlay(
       ctx.globalAlpha = 0.85;
       ctx.fillStyle = hex;
       ctx.beginPath();
-      ctx.roundRect(-nW / 2, startY, nW, nH, [rad, rad, nW * 0.18, nW * 0.18]);
+      ctx.roundRect(-nW / 2, startY, nW, nH, [nW * 0.18, nW * 0.18, rad, rad]);
       ctx.fill();
 
       // ── Glossy shine highlight ──
