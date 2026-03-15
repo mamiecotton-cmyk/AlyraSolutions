@@ -14,7 +14,8 @@ import {
   BarChart3,
   Clock,
   UserCircle,
-  Scissors
+  Scissors,
+  Wand2
 } from "lucide-react";
 import { UserRole } from "@workspace/api-client-react";
 
@@ -52,6 +53,7 @@ export function Sidebar() {
         return [
           { href: "/client", label: "My Profile", icon: LayoutDashboard },
           { href: "/client/book", label: "Book Now", icon: CalendarDays },
+          { href: "/try-on", label: "Try-On Colors", icon: Wand2 },
         ];
       default:
         return [];

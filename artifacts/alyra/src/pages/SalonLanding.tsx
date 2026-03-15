@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { MOCK_SALON, MOCK_SERVICES } from "@/lib/mock-data";
-import { Clock, DollarSign, Sparkles, MapPin, Phone, ChevronRight, Star } from "lucide-react";
+import { Clock, DollarSign, Sparkles, MapPin, Phone, ChevronRight, Star, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -70,7 +70,10 @@ export function SalonLanding() {
             <Button variant="gold" size="lg" className="gap-2 px-8" onClick={() => setLocation("/client/book")}>
               Book an Appointment <ChevronRight className="w-4 h-4" />
             </Button>
-            <Button variant="outline" size="lg" className="gap-2 px-8" onClick={() => setLocation("/walk-in/1")}>
+            <Button variant="outline" size="lg" className="gap-2 px-8" onClick={() => setLocation("/try-on")}>
+              <Wand2 className="w-4 h-4" /> Try Colors On Your Nails
+            </Button>
+            <Button variant="ghost" size="lg" className="gap-2 text-muted-foreground" onClick={() => setLocation("/walk-in/1")}>
               Walk-In Waitlist
             </Button>
           </div>

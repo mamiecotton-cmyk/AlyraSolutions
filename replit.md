@@ -21,7 +21,10 @@ The frontend also has quick-login demo buttons on the login screen.
 - **4 user roles**: Platform Admin, Salon Owner, Technician, Client
 - **Appointment booking** with multiple technicians per visit
 - **Walk-in QR waitlist** with estimated wait times
-- **Nail color inventory** with hex swatch display and virtual try-on
+- **Nail color inventory** with hex swatch display and real-time virtual try-on
+- **Virtual Try-On** (`/try-on`): upload or capture a hand photo → MediaPipe AI detects nail positions → overlay any inventory color live on the canvas
+- **Services Manager** (`/owner/services`): owner CRUD for service catalog (name, category, duration, price, description, active toggle)
+- **Public Salon Landing** (`/salon`): public-facing page with hero, service grid, and "Try Colors On Your Nails" CTA
 - **Loyalty program** with point tiers (Bronze/Silver/Gold/Platinum)
 - **SMS notifications** (Twilio integration ready - connect Twilio to enable)
 - **Client profiles** with appointment history and preferences
