@@ -13,8 +13,6 @@ import { useToast } from "@/hooks/use-toast";
 const NAIL_PAIRS = [[4,3],[8,7],[12,11],[16,15],[20,19]] as const;
 
 // ── Canvas drawing ────────────────────────────────────────────────────────────
-const DEBUG_LANDMARKS = true; // set false to hide dots
-
 function drawNailOverlay(
   canvas: HTMLCanvasElement,
   landmarkSets: Array<{x: number; y: number}[]>,
@@ -24,27 +22,6 @@ function drawNailOverlay(
   if (!ctx) return;
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
-
-  if (DEBUG_LANDMARKS) {
-    // Draw all 21 landmarks as small labeled circles
-    const COLORS = ["#ff0","#0ff","#f0f","#f80","#0f8"];
-    const FINGER_GROUPS = [[0],[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16],[17,18,19,20]];
-    for (const lms of landmarkSets) {
-      FINGER_GROUPS.forEach((group, gi) => {
-        group.forEach(idx => {
-          const lm = lms[idx];
-          ctx.beginPath();
-          ctx.arc(lm.x * W, lm.y * H, Math.max(4, W * 0.008), 0, Math.PI * 2);
-          ctx.fillStyle = COLORS[gi % COLORS.length];
-          ctx.fill();
-          ctx.fillStyle = "#000";
-          ctx.font = `bold ${Math.max(8, W * 0.014)}px sans-serif`;
-          ctx.fillText(String(idx), lm.x * W + 4, lm.y * H - 4);
-        });
-      });
-    }
-    return; // skip nail drawing while debugging
-  }
 
   for (const lms of landmarkSets) {
     for (const [tipIdx, baseIdx] of NAIL_PAIRS) {
@@ -57,22 +34,24 @@ function drawNailOverlay(
       const segLen = Math.sqrt(dx * dx + dy * dy);
       const angle  = Math.atan2(dy, dx);
 
-      // Nail plate anatomy:
-      //   y < 0  → free edge (past fingertip)
-      //   y = 0  → fingertip landmark
-      //   y > 0  → toward DIP (knuckle)
-      // Visible nail covers ~65% of tip→DIP, starting just past the free edge.
-      const nH     = segLen * 0.66;   // height of nail plate
-      const nW     = nH * 0.74;       // width slightly narrower than height
-      const rad    = nW * 0.44;       // tip rounding
-      const startY = -segLen * 0.06;  // offset nail to start just past the free edge
+      // MediaPipe places fingertip landmarks at the soft-tissue tip center,
+      // which lands slightly below the actual nail free edge in a 2D image.
+      // Compensate by starting the nail 20% of the segment length PAST the
+      // tip landmark (toward the free edge), then covering ~65% of the segment.
+      //   local y < 0 → past fingertip (free edge direction)
+      //   local y = 0 → at the fingertip landmark
+      //   local y > 0 → toward DIP joint
+      const nH     = segLen * 0.68;
+      const nW     = nH * 0.76;
+      const rad    = nW * 0.46;
+      const startY = -segLen * 0.20;   // start well past the tip at the free edge
 
       ctx.save();
       ctx.translate(tx, ty);
       ctx.rotate(angle + Math.PI / 2);
 
       // ── Nail polish body ──
-      ctx.globalAlpha = 0.86;
+      ctx.globalAlpha = 0.85;
       ctx.fillStyle = hex;
       ctx.beginPath();
       ctx.roundRect(-nW / 2, startY, nW, nH, [rad, rad, nW * 0.18, nW * 0.18]);
@@ -87,7 +66,7 @@ function drawNailOverlay(
       shine.addColorStop(1,    "rgba(255,255,255,0)");
       ctx.fillStyle = shine;
       ctx.beginPath();
-      ctx.roundRect(-nW / 2, startY + nH * 0.04, nW, nH * 0.52, [rad, rad, 0, 0]);
+      ctx.roundRect(-nW / 2, startY + nH * 0.04, nW, nH * 0.50, [rad, rad, 0, 0]);
       ctx.fill();
 
       ctx.restore();
