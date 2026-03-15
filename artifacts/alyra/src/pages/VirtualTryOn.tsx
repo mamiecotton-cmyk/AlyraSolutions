@@ -120,8 +120,13 @@ export function VirtualTryOn() {
     if (!color) return;
 
     const render = () => {
-      canvas.width  = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      // Use the element's actual CSS pixel dimensions so the canvas covers
+      // exactly what's visible — no letterbox offset from objectFit.
+      const W = img.clientWidth  || img.naturalWidth;
+      const H = img.clientHeight || img.naturalHeight;
+      if (!W || !H) return;
+      canvas.width  = W;
+      canvas.height = H;
       drawNailOverlay(canvas, landmarks, color.colorCode);
     };
 
@@ -131,6 +136,11 @@ export function VirtualTryOn() {
       img.addEventListener("load", render, { once: true });
       return () => img.removeEventListener("load", render);
     }
+
+    // Re-render overlay if the container is resized (e.g. window resize)
+    const ro = new ResizeObserver(render);
+    ro.observe(img);
+    return () => ro.disconnect();
   }, [stage, landmarks, selectedId]);
 
   // ── Run hand detection ───────────────────────────────────────────────────────
@@ -438,13 +448,15 @@ export function VirtualTryOn() {
 
             {/* Photo + overlay */}
             <div className="flex-1 flex flex-col gap-3">
-              <div className="relative inline-block max-w-full">
+              {/* Container sizes to exactly the rendered image — no letterboxing,
+                  so the canvas overlay lines up pixel-perfectly with the photo. */}
+              <div className="relative w-fit max-w-full">
                 <img
                   ref={imgRef}
                   src={photoUrl}
                   alt="Your hand"
-                  className="block rounded-2xl w-full"
-                  style={{ maxHeight: "560px", objectFit: "contain" }}
+                  className="block rounded-2xl max-w-full"
+                  style={{ maxHeight: "560px" }}
                 />
                 <canvas
                   ref={overlayRef}
