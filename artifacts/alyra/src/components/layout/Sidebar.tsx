@@ -13,7 +13,8 @@ import {
   Building2,
   BarChart3,
   Clock,
-  UserCircle
+  UserCircle,
+  Scissors
 } from "lucide-react";
 import { UserRole } from "@workspace/api-client-react";
 
@@ -37,6 +38,7 @@ export function Sidebar() {
           { href: "/owner/appointments", label: "Appointments", icon: CalendarDays },
           { href: "/owner/waitlist", label: "Waitlist", icon: Clock },
           { href: "/owner/staff", label: "Staff", icon: Users },
+          { href: "/owner/services", label: "Services", icon: Scissors },
           { href: "/owner/inventory", label: "Nail Colors", icon: PaintBucket },
           { href: "/owner/loyalty", label: "Loyalty", icon: Star },
           { href: "/owner/settings", label: "Settings", icon: Settings },

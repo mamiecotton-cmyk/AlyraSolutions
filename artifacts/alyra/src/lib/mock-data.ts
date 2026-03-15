@@ -11,6 +11,29 @@ import {
   UserRole
 } from "@workspace/api-client-react";
 
+// ── Service catalog ────────────────────────────────────────────────────────
+export interface SalonService {
+  id: number;
+  name: string;
+  category: string;
+  duration: number;   // minutes
+  price: number;      // USD
+  description: string;
+  active: boolean;
+}
+
+export const MOCK_SERVICES: SalonService[] = [
+  { id: 1, name: "Classic Manicure",      category: "Manicure",   duration: 45,  price: 45,  description: "Shaping, cuticle care, hand massage, and your choice of regular polish.", active: true },
+  { id: 2, name: "Gel Manicure",           category: "Manicure",   duration: 60,  price: 65,  description: "Chip-free, long-lasting gel color cured under UV light — stays perfect for up to 3 weeks.", active: true },
+  { id: 3, name: "Russian Manicure",       category: "Manicure",   duration: 90,  price: 150, description: "Meticulous e-file cuticle work for an ultra-clean, sharp nail bed — our signature service.", active: true },
+  { id: 4, name: "Gel-X Extensions",       category: "Extensions", duration: 90,  price: 125, description: "Premium soft-gel tips bonded with builder gel for immediate length, strength, and shape.", active: true },
+  { id: 5, name: "Classic Pedicure",       category: "Pedicure",   duration: 60,  price: 65,  description: "Relaxing foot soak, callus removal, nail shaping, and polish application.", active: true },
+  { id: 6, name: "Spa Pedicure",           category: "Pedicure",   duration: 75,  price: 85,  description: "Everything in Classic plus an exfoliating sugar scrub, hydrating mask, and extended calf massage.", active: true },
+  { id: 7, name: "Nail Art Design",        category: "Nail Art",   duration: 60,  price: 85,  description: "Hand-painted custom designs — from minimalist florals to intricate patterns. Price per set.", active: true },
+  { id: 8, name: "Chrome Powder Add-on",   category: "Add-ons",    duration: 15,  price: 20,  description: "Mirror-finish chrome powder layered over any gel service for an eye-catching metallic effect.", active: true },
+  { id: 9, name: "Paraffin Wax Treatment", category: "Treatments", duration: 20,  price: 25,  description: "Warm paraffin dip that deeply moisturizes hands or feet — a perfect add-on to any service.", active: false },
+];
+
 // Fallback data when API is missing
 export const MOCK_SALON: Salon = {
   id: 1,

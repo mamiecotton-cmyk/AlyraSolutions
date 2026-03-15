@@ -14,6 +14,8 @@ import { StaffManager } from "@/pages/owner/StaffManager";
 import { NailColors } from "@/pages/owner/NailColors";
 import { LoyaltyConfig } from "@/pages/owner/LoyaltyConfig";
 import { SalonSettings } from "@/pages/owner/SalonSettings";
+import { ServicesManager } from "@/pages/owner/ServicesManager";
+import { SalonLanding } from "@/pages/SalonLanding";
 import { TechDashboard } from "@/pages/tech/TechDashboard";
 import { TechProfile } from "@/pages/tech/TechProfile";
 import { ClientDashboard } from "@/pages/client/ClientDashboard";
@@ -47,7 +49,9 @@ function Router() {
       <Route path="/owner/staff" component={StaffManager} />
       <Route path="/owner/inventory" component={NailColors} />
       <Route path="/owner/loyalty" component={LoyaltyConfig} />
+      <Route path="/owner/services" component={ServicesManager} />
       <Route path="/owner/settings" component={SalonSettings} />
+      <Route path="/salon" component={SalonLanding} />
       
       {/* Technician */}
       <Route path="/tech" component={TechDashboard} />
