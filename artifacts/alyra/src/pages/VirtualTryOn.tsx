@@ -19,16 +19,17 @@ import { useToast } from "@/hooks/use-toast";
 //   mcpLeft / mcpRight = adjacent MCP joints that bracket this finger.
 //   For the thumb we use a custom approach using CMC (0) and MCP (1).
 const NAIL_DEFS = [
-  // thumb: tip=4, dip=3, use wrist(0) and index-MCP(5) for lateral ref
-  { tip: 4,  dip: 3,  latA: 0,  latB: 5  },
-  // index: tip=8, dip=7, lateral = thumb-MCP(1) ↔ middle-MCP(9)
-  { tip: 8,  dip: 7,  latA: 5,  latB: 9  },
-  // middle: tip=12, dip=11, lateral = index-MCP(5) ↔ ring-MCP(13)
-  { tip: 12, dip: 11, latA: 9,  latB: 13 },
-  // ring: tip=16, dip=15, lateral = middle-MCP(9) ↔ pinky-MCP(17)
-  { tip: 16, dip: 15, latA: 13, latB: 17 },
-  // pinky: tip=20, dip=19, lateral = ring-MCP(13) ↔ wrist(0) side
-  { tip: 20, dip: 19, latA: 13, latB: 17 },
+  // Thumb: tip=4, ip=3.
+  // The thumb is anatomically rotated ~90° vs the fingers.
+  // Use the thumb-MCP(2)→index-MCP(5) vector as the lateral reference —
+  // it runs across the base of the thumb and is reliably perpendicular
+  // to the thumb's distal axis regardless of hand orientation.
+  { tip: 4,  dip: 3,  latA: 2,  latB: 5,  thumbMode: true  },
+  // Fingers: lateral = adjacent MCP pair (left ↔ right of each finger)
+  { tip: 8,  dip: 7,  latA: 5,  latB: 9,  thumbMode: false },
+  { tip: 12, dip: 11, latA: 9,  latB: 13, thumbMode: false },
+  { tip: 16, dip: 15, latA: 13, latB: 17, thumbMode: false },
+  { tip: 20, dip: 19, latA: 13, latB: 17, thumbMode: false },
 ] as const;
 
 // ── Canvas drawing ────────────────────────────────────────────────────────────
@@ -49,30 +50,37 @@ function drawNailOverlay(
       const latA = lms[def.latA];
       const latB = lms[def.latB];
 
-      // ── Finger axis (tip → DIP, pointing "into" the finger) ──
+      // ── Finger axis (tip → DIP, "into" the finger body) ──
       const ax = (dip.x - tip.x) * W;
       const ay = (dip.y - tip.y) * H;
       const axLen = Math.sqrt(ax * ax + ay * ay) || 1;
-      // Normalised finger axis
-      const anx = ax / axLen, any = ay / axLen;
 
-      // ── Lateral axis (across adjacent knuckles, left→right of finger) ──
-      const lx = (latB.x - latA.x) * W;
-      const ly = (latB.y - latA.y) * H;
-      const lLen = Math.sqrt(lx * lx + ly * ly) || 1;
-      const lnx = lx / lLen, lny = ly / lLen;
+      let nailAngle: number;
 
-      // The nail plate normal = finger axis, but corrected so it is exactly
-      // perpendicular to the lateral axis.  We do this by taking the
-      // component of the finger axis that is perpendicular to the lateral:
-      //   perp = fingerAxis − (fingerAxis · lateralAxis) * lateralAxis
-      const dot  = anx * lnx + any * lny;
-      const px   = anx - dot * lnx;
-      const py   = any - dot * lny;
-      const pLen = Math.sqrt(px * px + py * py) || 1;
+      if (def.thumbMode) {
+        // ── Thumb: raw distal axis only ──────────────────────────────────────
+        // The thumb's distal phalanx points in a very different direction from
+        // the palm plane, so using any Gram-Schmidt correction based on
+        // adjacent MCPs rotates the nail into the wrong orientation.
+        // The raw tip→IP axis is all we need: rotate(rawAngle + π/2) below
+        // will correctly align the nail height along the thumb's distal axis.
+        nailAngle = Math.atan2(ay, ax);
+      } else {
+        // ── Fingers: Gram-Schmidt correction ────────────────────────────────
+        // Project the finger axis to be exactly perpendicular to the lateral
+        // (across-knuckle) axis, removing any in-plane lean.
+        const anx = ax / axLen, any = ay / axLen;
+        const lx = (latB.x - latA.x) * W;
+        const ly = (latB.y - latA.y) * H;
+        const lLen = Math.sqrt(lx * lx + ly * ly) || 1;
+        const lnx  = lx / lLen, lny = ly / lLen;
 
-      // Nail angle: the corrected "into the finger" direction
-      const nailAngle = Math.atan2(py / pLen, px / pLen);
+        const dot = anx * lnx + any * lny;
+        const px  = anx - dot * lnx;
+        const py  = any - dot * lny;
+        const pLen = Math.sqrt(px * px + py * py) || 1;
+        nailAngle = Math.atan2(py / pLen, px / pLen);
+      }
 
       const segLen = axLen;          // tip→DIP distance
       const nH     = segLen * 0.75; // nail height (along finger axis)
