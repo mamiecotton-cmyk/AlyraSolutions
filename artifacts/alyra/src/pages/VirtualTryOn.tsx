@@ -24,11 +24,12 @@ import { useToast } from "@/hooks/use-toast";
 // widthScale:  nail width as a fraction of nail height.
 // dipFrac:     how far along tip→DIP to place the CENTER of the overlay (0 = at tip, 1 = at DIP).
 const NAIL_DEFS = [
-  { tip: 4,  dip: 3,  latA: 2,  latB: 5,  thumbMode: true,  heightScale: 0.69, widthScale: 0.80, dipFrac: 0.22 },
-  { tip: 8,  dip: 7,  latA: 5,  latB: 9,  thumbMode: false, heightScale: 0.67, widthScale: 0.70, dipFrac: 0.22 },
-  { tip: 12, dip: 11, latA: 9,  latB: 13, thumbMode: false, heightScale: 0.67, widthScale: 0.72, dipFrac: 0.22 },
-  { tip: 16, dip: 15, latA: 13, latB: 17, thumbMode: false, heightScale: 0.65, widthScale: 0.68, dipFrac: 0.22 },
-  { tip: 20, dip: 19, latA: 13, latB: 17, thumbMode: false, heightScale: 0.62, widthScale: 0.60, dipFrac: 0.20 },
+  // Thumb omitted — in most natural hand poses the thumbnail faces sideways
+  // and cannot be reliably overlaid. Future: detect dorsal-facing thumbs.
+  { tip: 8,  dip: 7,  latA: 5,  latB: 17, thumbMode: false, heightScale: 0.72, widthScale: 0.85, dipFrac: -0.02 },
+  { tip: 12, dip: 11, latA: 9,  latB: 17, thumbMode: false, heightScale: 0.72, widthScale: 0.87, dipFrac: -0.06, lateralShift: -0.25 },
+  { tip: 16, dip: 15, latA: 5,  latB: 17, thumbMode: false, heightScale: 0.70, widthScale: 0.83, dipFrac: -0.02 },
+  { tip: 20, dip: 19, latA: 5,  latB: 17, thumbMode: false, heightScale: 0.65, widthScale: 0.75, dipFrac: -0.07, lateralShift: 0.18 },
 ] as const;
 
 // ── Canvas drawing ────────────────────────────────────────────────────────────
@@ -96,8 +97,23 @@ function drawNailOverlay(
       // dipFrac ≈ 0.38 means the center sits just past the free edge of the nail
       // (tip landmark is at the very end of the finger), so the overlay spans
       // from slightly beyond the fingertip down to the cuticle line.
-      const centerX = tx + dirX * segLen * def.dipFrac;
-      const centerY = ty + dirY * segLen * def.dipFrac;
+      let centerX = tx + dirX * segLen * def.dipFrac;
+      let centerY = ty + dirY * segLen * def.dipFrac;
+      // Per-finger lateral shift (perpendicular to finger axis)
+      // Positive = shift right (from camera's perspective on a right hand)
+      if (def.lateralShift) {
+        const perpX = -dirY;
+        const perpY =  dirX;
+        centerX += perpX * nW * def.lateralShift;
+        centerY += perpY * nW * def.lateralShift;
+      }
+      if (def.thumbMode) {
+        // Shift toward dorsal (nail) surface — perpendicular to finger axis
+        const perpX = -dirY;
+        const perpY =  dirX;
+        centerX -= perpX * nW * 0.70;
+        centerY -= perpY * nW * 0.70;
+      }
 
       ctx.save();
       ctx.translate(centerX, centerY);
@@ -244,16 +260,16 @@ export function VirtualTryOn() {
       const scale   = Math.min(1, MAX_PX / longest);
       const W = Math.max(1, Math.round((imgEl.naturalWidth  || 300) * scale));
       const H = Math.max(1, Math.round((imgEl.naturalHeight || 300) * scale));
-
       const canvas = document.createElement("canvas");
       canvas.width  = W;
       canvas.height = H;
-      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-      ctx.drawImage(imgEl, 0, 0, W, H);
-
-      // Pass raw RGBA ImageData — avoids WebGL cross-origin texture issues
-      const imageData = ctx.getImageData(0, 0, W, H);
-      const result    = landmarker.detect(imageData);
+      const ctx = canvas.getContext("2d")!;
+      const bmp = await createImageBitmap(imgEl, { resizeWidth: W, resizeHeight: H, imageOrientation: "from-image" });
+      ctx.drawImage(bmp, 0, 0);
+      bmp.close();
+      // Pass canvas element directly — lets MediaPipe use its WebGL
+      // texture path which correctly handles non-square aspect ratios.
+      const result = landmarker.detect(canvas);
 
       if (!result?.landmarks?.length) {
         setErrorMsg("No hand detected. Try a clear, well-lit photo with all fingers spread apart, taken from above.");
